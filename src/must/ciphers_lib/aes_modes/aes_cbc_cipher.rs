@@ -29,3 +29,19 @@
 //         Ok(plaintext)
 //     }
 // }
+use aes::cipher::{BlockEncrypt, BlockDecrypt, NewBlockCipher, generic_array::GenericArray};
+use block_modes::{BlockMode, Cbc};
+use block_modes::block_padding::Pkcs7;
+use aes::Aes128;
+
+type Aes128Cbc = Cbc<Aes128, Pkcs7>;
+
+pub struct AesCbcCipher;
+
+impl AesCbcCipher {
+    fn create_cipher(key: &[u8], iv: &[u8]) -> Result<Aes128Cbc, String> {
+        let key = GenericArray::from_slice(key);
+        let iv = GenericArray::from_slice(iv);
+        Aes128Cbc::new(key, iv).map_err(|e| e.to_string())
+    }
+}
