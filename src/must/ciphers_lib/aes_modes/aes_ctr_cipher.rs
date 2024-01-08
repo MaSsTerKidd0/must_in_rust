@@ -1,8 +1,8 @@
-use std::slice::Chunks;
+
 use crate::AesCipher;
 use aes::Aes256;
 use ctr::Ctr128BE;
-use cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
+use cipher::{KeyIvInit, StreamCipher};
 type Aes256Ctr = Ctr128BE<Aes256>;
 pub struct AesCtr;
 

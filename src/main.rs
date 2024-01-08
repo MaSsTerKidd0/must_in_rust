@@ -11,28 +11,22 @@ use crate::must::network_icd::network_icd::NetworkICD;
 use aes_gcm_siv::{Nonce, aead::{Aead}};
 use rand::{rngs::OsRng, RngCore};
 use crate::must::ciphers_lib::aes_cipher_trait::AesCipher;
+use crate::must::ciphers_lib::aes_modes::aes_cbc_cipher::AesCbc;
 use crate::must::ciphers_lib::aes_modes::aes_ctr_cipher::AesCtr;
 
 fn main() {
     let data = b"Hello, world!";
     let key = KeyGenerator::generate_key(KeySize::Bits256);
-    println!("key: {:?}", key);
+    println!("key: {:?}", hex::encode(key.clone()));
 
-    let mut nonce_bytes = [0u8; 16];
+    let mut nonce_bytes:[u8; 16] = [0; 16];
     OsRng.fill_bytes(&mut nonce_bytes);
-
-    // let encrypted_data = AesCtr::encrypt(data, key.clone(), &nonce_bytes);
-    // println!("encrypted data: {:?}", encrypted_data.unwrap());
-    //
-    // let decrypted_data = AesCtr::decrypt(data, key.clone(), &nonce_bytes);
-    // println!("decrypted data: {:?}", String::from_utf8_lossy(&decrypted_data.unwrap()))
-    //let nonce = Nonce::from_slice(&nonce_bytes);
-
-    match AesCtr::encrypt(data, key.clone(), &nonce_bytes) {
+    println!("Nonce: {:?}", hex::encode(nonce_bytes.clone()));
+    match AesCbc::encrypt(data, key.clone(), &nonce_bytes) {
         Ok((encrypted_data)) => {
-            println!("Encrypted Data: {:?}", encrypted_data);
-            match AesCtr::decrypt(&encrypted_data, key, &nonce_bytes) {
-                Ok(decrypted_data) => println!("Decrypted Data: {:?}", String::from _utf8_lossy(&decrypted_data)),
+            println!("Encrypted Data: {:?}", hex::encode(encrypted_data.clone()));
+            match AesCbc::decrypt(&encrypted_data, key, &nonce_bytes) {
+                Ok(decrypted_data) => println!("Decrypted Data: {:?}", String::from_utf8_lossy(&decrypted_data)),
                 Err(e) => println!("Decryption error: {}", e),
             }
         }
