@@ -22,10 +22,10 @@ fn main() {
     let mut nonce_bytes:[u8; 16] = [0; 16];
     OsRng.fill_bytes(&mut nonce_bytes);
     println!("Nonce: {:?}", hex::encode(nonce_bytes.clone()));
-    match AesCbc::encrypt(data, key.clone(), &nonce_bytes) {
+    match AesCtr::encrypt(data, key.clone(), &nonce_bytes) {
         Ok((encrypted_data)) => {
             println!("Encrypted Data: {:?}", hex::encode(encrypted_data.clone()));
-            match AesCbc::decrypt(&encrypted_data, key, &nonce_bytes) {
+            match AesCtr::decrypt(&encrypted_data, key, &nonce_bytes) {
                 Ok(decrypted_data) => println!("Decrypted Data: {:?}", String::from_utf8_lossy(&decrypted_data)),
                 Err(e) => println!("Decryption error: {}", e),
             }
