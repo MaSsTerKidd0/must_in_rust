@@ -10,29 +10,32 @@ use crate::must::json_handler::JsonHandler;
 use crate::must::network_icd::network_icd::NetworkICD;
 use aes_gcm_siv::{Nonce, aead::{Aead}};
 use rand::{rngs::OsRng, RngCore};
+use rsa::traits::PublicKeyParts;
 use crate::must::ciphers_lib::aes_cipher_trait::AesCipher;
 use crate::must::ciphers_lib::aes_modes::aes_cbc_cipher::AesCbc;
 use crate::must::ciphers_lib::aes_modes::aes_ctr_cipher::AesCtr;
+use crate::must::ciphers_lib::rsa_crypto::RsaCryptoKeys;
 
-fn main() {
-    let data = b"Hello, world!";
-    let key = KeyGenerator::generate_key(KeySize::Bits256);
-    println!("key: {:?}", hex::encode(key.clone()));
+use actix_web::{web, App, HttpServer, HttpResponse};
+use actix_cors::Cors;
+use crate::must::web_api::routes;
 
-    let mut nonce_bytes:[u8; 16] = [0; 16];
-    OsRng.fill_bytes(&mut nonce_bytes);
-    println!("Nonce: {:?}", hex::encode(nonce_bytes.clone()));
-    match AesCtr::encrypt(data, key.clone(), &nonce_bytes) {
-        Ok((encrypted_data)) => {
-            println!("Encrypted Data: {:?}", hex::encode(encrypted_data.clone()));
-            match AesCtr::decrypt(&encrypted_data, key, &nonce_bytes) {
-                Ok(decrypted_data) => println!("Decrypted Data: {:?}", String::from_utf8_lossy(&decrypted_data)),
-                Err(e) => println!("Decryption error: {}", e),
-            }
-        }
-        Err(e) => println!("Encryption error: {}", e),
-    }
+#[actix_web::main]
+async fn main()  -> std::io::Result<()> {
+    HttpServer::new(|| {
+        App::new()
+            .wrap(Cors::permissive()) // Handles CORS
+            .route("/login", web::post().to(routes::login::login)) // Includes the login route
+    })
+        .bind("127.0.0.1:8080")?
+        .run()
+        .await
 
+    // let (key, nonce_bytes) = generate_key_and_nonce();
+    // perform_aes_encryption_and_decryption(&key, &nonce_bytes);
+    // generate_and_display_rsa_keys();
+
+    //let device = device_picker();
 
     //let fragmented_packets = check_fragmentation();
     //check_assemble_packets(fragmented_packets);
@@ -46,7 +49,6 @@ fn show_devices(devices: Vec<Device>) {
         device_no += 1;
     }
 }
-
 fn device_picker() -> Device {
     let  devices = Device::list().unwrap();
     let mut choice: usize = 0;
@@ -59,7 +61,6 @@ fn device_picker() -> Device {
     }
     return devices.get(choice-1).unwrap().clone();
 }
-
 fn check_fragmentation() -> VecDeque<NetworkICD>{
     let text = "Hello, ipsum dolor sit amet consectetur adipisicing elit. Maxime mollitia,
 molestiae quas vel sint commodi repudiandae consequuntur voluptatum laborum
@@ -86,7 +87,6 @@ doloremque...
     let fragmented_packets = fragmenter.unwrap().fragment(encoded_text);
     return fragmented_packets;
 }
-
 fn check_assemble_packets(packets: VecDeque<NetworkICD>){
     let assemble = Fragment{
         first_net_max_bandwidth: 0,
@@ -99,7 +99,49 @@ fn check_assemble_packets(packets: VecDeque<NetworkICD>){
         Err(e) => println!("Failed to convert: {}", e),
     }
 }
-
 fn convert_dec_to_ascii(vec: Vec<u8>) -> Result<String, std::string::FromUtf8Error> {
     String::from_utf8(vec)
+}
+fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16]) {
+    let key = KeyGenerator::generate_key(KeySize::Bits256);
+    println!("key: {:?}", hex::encode(&key));
+
+    let mut nonce_bytes: [u8; 16] = [0; 16];
+    OsRng.fill_bytes(&mut nonce_bytes);
+    println!("Nonce: {:?}", hex::encode(&nonce_bytes));
+
+    (key, nonce_bytes)
+}
+fn perform_aes_encryption_and_decryption(key: &[u8], nonce_bytes: &[u8; 16]) {
+    let data = b"Hello, world!";
+    match AesCtr::encrypt(data, key.to_vec(), nonce_bytes) {
+        Ok(encrypted_data) => {
+            println!("Encrypted Data: {:?}", hex::encode(&encrypted_data));
+            match AesCtr::decrypt(&encrypted_data, key.to_vec(), nonce_bytes) {
+                Ok(decrypted_data) => println!("Decrypted Data: {:?}", String::from_utf8_lossy(&decrypted_data)),
+                Err(e) => println!("Decryption error: {}", e),
+            }
+        }
+        Err(e) => println!("Encryption error: {}", e),
+    }
+}
+fn generate_and_display_rsa_keys() {
+    let rsa = RsaCryptoKeys::new(2048).unwrap();
+    let public_key = rsa.get_public_key();
+    let n = public_key.n();
+    let e = public_key.e();
+
+    let n_hex = hex::encode(n.to_bytes_be());
+    let e_hex = hex::encode(e.to_bytes_be());
+
+    println!("Public Key:");
+    println!("Modulus (n): {}", n_hex);
+    println!("Exponent (e): {}", e_hex);
+
+    let data = b"Hello, world!";
+
+    let res_enc = rsa.encrypt(data).expect("TODO: panic message");
+    println!("Encrypted RSA: {:?}", res_enc);
+    let res_dec = rsa.decrypt(res_enc.as_slice()).expect("TOD");
+    println!("Decrypted RSA: {:?}", String::from_utf8_lossy(res_dec.as_slice()));
 }

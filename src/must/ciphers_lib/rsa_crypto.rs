@@ -1,7 +1,7 @@
-use rsa::{ RsaPublicKey, RsaPrivateKey,Oaep};
+use rsa::{RsaPrivateKey, RsaPublicKey, Oaep, sha2::Sha256};
 use rand::rngs::OsRng;
 use std::error::Error;
-use sha2::Sha256;
+
 
 pub struct RsaCryptoKeys {
     private_key: RsaPrivateKey,
