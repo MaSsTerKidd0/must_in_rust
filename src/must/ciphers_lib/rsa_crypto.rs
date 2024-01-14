@@ -14,7 +14,6 @@ impl RsaCryptoKeys {
         let mut rng = OsRng;
         let private_key = RsaPrivateKey::new(&mut rng, bits)?;
         let public_key = RsaPublicKey::from(&private_key);
-
         Ok(RsaCryptoKeys { private_key, public_key })
     }
 
