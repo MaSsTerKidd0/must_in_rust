@@ -21,16 +21,24 @@ use actix_cors::Cors;
 use crate::must::web_api::routes;
 
 #[actix_web::main]
-async fn main()  -> std::io::Result<()> {
-    HttpServer::new(|| {
+async fn main() -> std::io::Result<()> {
+
+    HttpServer::new(move || {
         App::new()
-            .wrap(Cors::permissive()) // Handles CORS
-            .route("/login", web::post().to(routes::login::login)) // Includes the login route
+            .wrap(Cors::permissive())
+            .service(
+                web::resource("/config")
+                    .route(web::post().to(routes::config_handler::config)), // Config route
+            )
+            .service(
+                web::resource("/login")
+                    .route(web::post().to(routes::login_handler::login)), // Login route
+            )
     })
         .bind("127.0.0.1:8080")?
         .run()
         .await
-
+}
     // let (key, nonce_bytes) = generate_key_and_nonce();
     // perform_aes_encryption_and_decryption(&key, &nonce_bytes);
     // generate_and_display_rsa_keys();
@@ -39,7 +47,7 @@ async fn main()  -> std::io::Result<()> {
 
     //let fragmented_packets = check_fragmentation();
     //check_assemble_packets(fragmented_packets);
-}
+//}
 
 fn show_devices(devices: Vec<Device>) {
     let mut device_no = 1;

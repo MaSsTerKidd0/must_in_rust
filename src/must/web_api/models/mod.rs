@@ -1,1 +1,2 @@
-pub mod login_request;
+pub mod login_req;
+pub mod config_req;
