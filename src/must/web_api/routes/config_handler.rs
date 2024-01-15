@@ -5,6 +5,6 @@ pub async fn config(info: web::Json<ConfigReq>) -> impl Responder {
     println!("Config Name: {}, IP Address: {}, Encryption: {}",
              info.config_name,
              info.ip_addr,
-             info.encryption);
+             info.aes_type);
     HttpResponse::Ok().json("Configured")
 }
