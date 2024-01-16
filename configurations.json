@@ -1,0 +1,26 @@
+[
+  {
+    "config_name": "Save1",
+    "secure_net": "192.168.0.1",
+    "unsecure_net": "192.168.0.2",
+    "aes_type": "Aes-Gcm-Siv"
+  },
+  {
+    "config_name": "Save2",
+    "secure_net": "192.168.0.3",
+    "unsecure_net": "192.168.0.4",
+    "aes_type": "Aes-Cbc"
+  },
+  {
+    "config_name": "Save3",
+    "secure_net": "192.168.0.5",
+    "unsecure_net": "192.168.0.6",
+    "aes_type": "Aes-Ctr"
+  },
+  {
+    "config_name": "Save4",
+    "secure_net": "192.168.0.6",
+    "unsecure_net": "192.168.0.7",
+    "aes_type": "Aes-Gcm-Siv"
+  }
+]
