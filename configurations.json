@@ -22,5 +22,47 @@
     "secure_net": "192.168.0.6",
     "unsecure_net": "192.168.0.7",
     "aes_type": "Aes-Gcm-Siv"
+  },
+  {
+    "config_name": "Save6",
+    "secure_net": "198.128.0.12",
+    "unsecure_net": "198.128.0.18",
+    "aes_type": "AesCtr"
+  },
+  {
+    "config_name": "Save8",
+    "secure_net": "198.168.0.12",
+    "unsecure_net": "198.168.0.48",
+    "aes_type": "AesCtr"
+  },
+  {
+    "config_name": "Save12",
+    "secure_net": "198.128.0.12",
+    "unsecure_net": "198.128.0.18",
+    "aes_type": "AesCtr"
+  },
+  {
+    "config_name": "Save7",
+    "secure_net": "192.168.0.17",
+    "unsecure_net": "192.168.0.69",
+    "aes_type": "AesCbc"
+  },
+  {
+    "config_name": "Save9",
+    "secure_net": "192.168.5.12",
+    "unsecure_net": "192.168.5.48",
+    "aes_type": "AesCtr"
+  },
+  {
+    "config_name": "Save13",
+    "secure_net": "192.168.0.17",
+    "unsecure_net": "192.168.0.15",
+    "aes_type": "AesCtr"
+  },
+  {
+    "config_name": "Save11",
+    "secure_net": "192.168.0.17",
+    "unsecure_net": "192.168.0.15",
+    "aes_type": "AesCtr"
   }
 ]

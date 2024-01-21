@@ -16,38 +16,57 @@ use crate::must::ciphers_lib::aes_modes::aes_cbc_cipher::AesCbc;
 use crate::must::ciphers_lib::aes_modes::aes_ctr_cipher::AesCtr;
 use crate::must::ciphers_lib::rsa_crypto::RsaCryptoKeys;
 
-use actix_web::{web, App, HttpServer, HttpResponse};
+use actix_web::{web, App, HttpServer, middleware::Logger, HttpResponse};
 use actix_cors::Cors;
-use crate::must::web_api::routes;
+use actix_web::http::header;
+use crate::must::web_api::handlers;
+
+
+
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "actix_web=debug");
+    env_logger::init();
 
     HttpServer::new(move || {
+        // Configure CORS
+        let cors = Cors::default()
+            .allowed_origin_fn(|origin, _req_head| {
+                true
+            })
+            .allowed_methods(vec!["GET", "POST", "OPTIONS"]) // Specify the allowed HTTP methods
+            .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE]) // Specify the allowed HTTP headers
+            .max_age(3600); // Specify the max age for CORS preflight requests
         App::new()
-            .wrap(Cors::permissive())
-            .service(
-                web::resource("/config")
-                    .route(web::post().to(routes::config_handler::config)), // Config route
-            )
-            .service(
-                web::resource("/login")
-                    .route(web::post().to(routes::login_handler::login)), // Login route
-            )
+            .wrap(Logger::default())
+            .wrap(cors)
+            .configure(handlers::config)
+            .service(handlers::login)
     })
         .bind("127.0.0.1:8080")?
         .run()
         .await
 }
-    // let (key, nonce_bytes) = generate_key_and_nonce();
-    // perform_aes_encryption_and_decryption(&key, &nonce_bytes);
-    // generate_and_display_rsa_keys();
 
-    //let device = device_picker();
 
-    //let fragmented_packets = check_fragmentation();
-    //check_assemble_packets(fragmented_packets);
-//}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 fn show_devices(devices: Vec<Device>) {
     let mut device_no = 1;
@@ -153,3 +172,12 @@ fn generate_and_display_rsa_keys() {
     let res_dec = rsa.decrypt(res_enc.as_slice()).expect("TOD");
     println!("Decrypted RSA: {:?}", String::from_utf8_lossy(res_dec.as_slice()));
 }
+// let (key, nonce_bytes) = generate_key_and_nonce();
+// perform_aes_encryption_and_decryption(&key, &nonce_bytes);
+// generate_and_display_rsa_keys();
+
+//let device = device_picker();
+
+//let fragmented_packets = check_fragmentation();
+//check_assemble_packets(fragmented_packets);
+//}
