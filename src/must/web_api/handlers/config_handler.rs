@@ -17,6 +17,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 
 #[post("/")]
 pub async fn save_config(info: web::Json<ConfigRecord>) -> impl Responder {
+
     println!("Config Name: {}, SecureNet: {}, UnsecureNet: {}, Encryption: {}",
              info.config_name,
              info.secure_net,

@@ -4,6 +4,7 @@ use crate::must::processing_unit::actions_chain::fragment::{Fragment};
 
 use std::collections::VecDeque;
 use std::io;
+use std::net::SocketAddr;
 use pcap::Device;
 use crate::must::ciphers_lib::key_generator::{KeyGenerator, KeySize};
 use crate::must::json_handler::JsonHandler;
@@ -19,9 +20,10 @@ use crate::must::ciphers_lib::rsa_crypto::RsaCryptoKeys;
 use actix_web::{web, App, HttpServer, middleware::Logger, HttpResponse};
 use actix_cors::Cors;
 use actix_web::http::header;
+use crate::must::protocols::protocol::Protocol;
+use crate::must::protocols::tcp_protocol::TcpProtocol;
 use crate::must::web_api::handlers;
-
-
+use crate::must::web_api::handlers::config_handler::find_config_by_name;
 
 
 #[actix_web::main]
@@ -50,7 +52,18 @@ async fn main() -> std::io::Result<()> {
 }
 
 
+async fn handle_transmission(configuration_name: &str) {
+    let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 
+    // Parse the secure_net and unsecure_net into SocketAddr
+    let secure_addr: SocketAddr = config.secure_net.parse().expect("Invalid secure net address");
+    let unsecure_addr: SocketAddr = config.unsecure_net.parse().expect("Invalid unsecure net address");
+
+    // Create TcpProtocol instance
+    let secure_tcp_socket = TcpProtocol::new(secure_addr);
+    let unsecure_tcp_socket = TcpProtocol::new(unsecure_addr);
+    //impl The transmit between two channels
+}
 
 
 
