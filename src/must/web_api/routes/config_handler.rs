@@ -1,9 +1,9 @@
 use actix_web::{web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use crate::must::json_handler::JsonHandler;
-use crate::must::web_api::models::config_req::ConfigReq;
+use crate::must::web_api::models::config_req::ConfigRecord;
 
-pub async fn config(info: web::Json<ConfigReq>) -> impl Responder {
+pub async fn config(info: web::Json<ConfigRecord>) -> impl Responder {
     println!("Config Name: {}, SecureNet: {}, UnsecureNet: {}, Encryption: {}",
              info.0.config_name,
              info.0.secure_net,
@@ -11,7 +11,7 @@ pub async fn config(info: web::Json<ConfigReq>) -> impl Responder {
              info.0.aes_type);
 
 
-    let mut configs: Vec<ConfigReq> = match JsonHandler::load("configurations.json") {
+    let mut configs: Vec<ConfigRecord> = match JsonHandler::load("configurations.json") {
         Ok(cfg) => cfg,
         Err(_) => return HttpResponse::InternalServerError().json("Failed to load configurations")
     };

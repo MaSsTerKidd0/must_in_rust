@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct ConfigReq {
+pub struct ConfigRecord {
     pub config_name: String,
     pub secure_net: String,
     pub unsecure_net: String,
     pub aes_type: String,
 }
-impl ConfigReq {
+impl ConfigRecord {
     pub fn is_valid(&self) -> bool {
         !self.config_name.trim().is_empty() &&
             !self.secure_net.trim().is_empty() &&
