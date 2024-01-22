@@ -1,7 +1,7 @@
 use std::sync::mpsc::Receiver;
 
 pub struct Processor{
-    packet_data_rx: Receiver<Vec<u8>>
+    pub packet_data_rx: Receiver<Vec<u8>>
 }
 
 impl Processor {

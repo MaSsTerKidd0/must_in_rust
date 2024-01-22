@@ -32,14 +32,13 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     HttpServer::new(move || {
-        // Configure CORS
         let cors = Cors::default()
             .allowed_origin_fn(|origin, _req_head| {
                 true
             })
             .allowed_methods(vec!["GET", "POST", "OPTIONS"]) // Specify the allowed HTTP methods
             .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE]) // Specify the allowed HTTP headers
-            .max_age(3600); // Specify the max age for CORS preflight requests
+            .max_age(3600);
         App::new()
             .wrap(Logger::default())
             .wrap(cors)
@@ -62,7 +61,11 @@ async fn handle_transmission(configuration_name: &str) {
     // Create TcpProtocol instance
     let secure_tcp_socket = TcpProtocol::new(secure_addr);
     let unsecure_tcp_socket = TcpProtocol::new(unsecure_addr);
-    //impl The transmit between two channels
+
+    let (_pre_process_data, _processing_packets_data) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (_after_process_data, _processing_packets_data) = std::sync::mpsc::channel::<Vec<u8>>();
+
+
 }
 
 

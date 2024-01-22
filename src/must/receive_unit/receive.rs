@@ -1,5 +1,7 @@
 use std::sync::mpsc::{Sender};
-use pcap::{Device};
+use std::thread;
+use std::time::Duration;
+use pcap::{Active, Capture, Device};
 
 pub struct ReceiveUnit {
     pub(crate) device: Device,
