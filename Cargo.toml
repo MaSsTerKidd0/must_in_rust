@@ -37,6 +37,7 @@ cbc = { version = "0.1.2", features = ["alloc"] }
 actix-web = { version = "4.4.1", features = ["macros"] }
 actix-cors = "0.7.0"
 env_logger = "0.11.0"
+flate2 = "1.0.28"
 
 [profile.dev.package.num-bigint-dig]
 opt-level = 3

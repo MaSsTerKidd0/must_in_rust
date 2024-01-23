@@ -1,8 +1,8 @@
 
-use std::net::SocketAddr;
-use tokio::net::{TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream, SocketAddr};
+use std::io::{self, Read, Write};
 use crate::must::protocols::protocol::Protocol;
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+
 pub struct TcpProtocol {
     addr: SocketAddr,
 }
@@ -12,22 +12,23 @@ impl Protocol for TcpProtocol {
         TcpProtocol { addr }
     }
 
-    async fn receive(&self) -> io::Result<Option<String>> {
-        let listener = TcpListener::bind(self.addr).await?;
-        match listener.accept().await {
-            Ok((mut socket, _)) => {
-                let mut data = vec![0; 1024];
-                let size = socket.read(&mut data).await?;
-                data.truncate(size);
-                Ok(Some(String::from_utf8_lossy(&data).to_string()))
+    fn receive(&self) -> io::Result<Option<String>> {
+        let listener = TcpListener::bind(self.addr)?;
+        match listener.accept() {
+            Ok((mut stream, _)) => {
+                let mut buffer = vec![0; 1024];
+                let bytes_read = stream.read(&mut buffer)?;
+                buffer.truncate(bytes_read);
+                Ok(Some(String::from_utf8_lossy(&buffer).to_string()))
             },
             Err(e) => Err(e),
         }
     }
 
-    async fn send(&self, message: String) -> io::Result<Option<String>> {
-        let mut stream = TcpStream::connect(self.addr).await?;
-        stream.write_all(message.as_bytes()).await?;
-        Ok(Some(message))
+    fn send(&self, target_addr: String, message: &[u8]) -> io::Result<()> {
+        let target_socket_addr: SocketAddr = target_addr.parse().map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "Invalid address format"))?;
+        let mut stream = TcpStream::connect(target_socket_addr)?;
+        stream.write_all(message)?;
+        Ok(())
     }
 }

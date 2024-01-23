@@ -1,3 +1,3 @@
-mod filter;
-mod compress;
+pub mod filter;
+pub mod compress;
 pub mod fragment;
