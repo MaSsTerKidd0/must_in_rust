@@ -69,7 +69,6 @@ use crate::must::web_api::handlers::config_handler::find_config_by_name;
 // }
 
 fn main(){
-
     let configuration_name = "Save13";
     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 
@@ -83,7 +82,6 @@ fn main(){
     let secure_addr: SocketAddr = secure_net.parse().expect("Invalid secure net address");
     let unsecure_addr: SocketAddr = unsecure_net.parse().expect("Invalid unsecure net address");
 
-    // Create TcpProtocol instance
 
     //impl The transmit between two channels
     let (_pre_process_data, _processing_packets_data) = std::sync::mpsc::channel::<Vec<u8>>();
@@ -104,6 +102,8 @@ fn main(){
     thread2.join().unwrap();
     //thread3.join().unwrap();
 }
+
+
 fn handle_transmission(configuration_name: &str) {
 
 }

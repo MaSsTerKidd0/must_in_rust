@@ -2,6 +2,7 @@ use std::sync::mpsc::Receiver;
 
 pub struct ProcessorUnit {
     pub(crate) packet_data_rx: Receiver<Vec<u8>>
+
 }
 
 impl ProcessorUnit {
