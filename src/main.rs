@@ -20,7 +20,6 @@ use crate::must::ciphers_lib::rsa_crypto::RsaCryptoKeys;
 use actix_web::{web, App, HttpServer, middleware::Logger, HttpResponse};
 use actix_cors::Cors;
 use actix_web::http::header;
-use crate::must::commands::command::Command;
 use crate::must::processing_unit::actions_chain::filter::Protocol::UDP;
 use crate::must::processing_unit::processor::ProcessorUnit;
 use crate::must::protocols::protocol::Protocol;
@@ -67,8 +66,9 @@ use crate::must::web_api::handlers::config_handler::find_config_by_name;
 //         .run()
 //         .await
 // }
-
+use std::env;
 fn main(){
+    env::set_var("RUST_BACKTRACE", "full3");
     let configuration_name = "Save13";
     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 
@@ -83,24 +83,24 @@ fn main(){
     let unsecure_addr: SocketAddr = unsecure_net.parse().expect("Invalid unsecure net address");
 
 
-    //impl The transmit between two channels
-    let (_pre_process_data, _processing_packets_data) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (_after_process_data, _processing_packets_data) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
 
     let device = device_picker();
-    println!("Selected device: {}", device.desc.clone().unwrap());
+    println!("Selected device: {}", device.clone().desc.clone().unwrap());
 
-    let receive_handler = ReceiveUnit::new(device, _pre_process_data);
-    let processor_handler = ProcessorUnit::new(_processing_packets_data);
-    //let send_handler  = SendUnit::new(UdpProtocol::new(unsecure_addr), unsecure_net.parse().unwrap(), 17);//Todo: Fix issue
+    let receive_handler = ReceiveUnit::new(device, pre_process_sender);
+    let processor_handler = ProcessorUnit::new(pre_process_receiver, post_process_sender);
+    let send_handler = SendUnit::new(UdpProtocol::new(unsecure_addr), unsecure_net.parse().unwrap(),17,post_process_receiver);
 
-    let thread1 = thread::spawn(move||receive_handler.execute());
-    let thread2 = thread::spawn(move||processor_handler.execute());
-    //let thread3 = thread::spawn(move||send_handler.execute());
+    let thread1 = thread::spawn(move|| receive_handler.receive());
+    let thread2 = thread::spawn(move|| processor_handler.process());
+    let thread3 = thread::spawn(move|| send_handler.send());
+
 
     thread1.join().unwrap();
     thread2.join().unwrap();
-    //thread3.join().unwrap();
+    thread3.join().unwrap();
 }
 
 
@@ -120,16 +120,19 @@ fn handle_transmission(configuration_name: &str) {
 
 
 
-
-
-
-
-fn show_devices(devices: Vec<Device>) {
+fn show_devices() {
     let mut device_no = 1;
-    for device in devices {
-
-        println!("{}.{}", device_no, device.desc.unwrap());
-        device_no += 1;
+    match Device::list() {
+        Ok(devices) => {
+            for device in devices {
+                print!("Device No.{} - ", device_no);
+                println!("Description: {:?}", device.desc);
+                device_no = device_no+1;
+            }
+        }
+        Err(e) => {
+            eprintln!("Error listing devices: {}", e);
+        }
     }
 }
 fn device_picker() -> Device {
@@ -137,7 +140,7 @@ fn device_picker() -> Device {
     let mut choice: usize = 0;
     while choice < 1 || choice > devices.len(){
         println!("Select a device");
-        show_devices(devices.clone());
+        show_devices();
         let mut input = String::new();
         io::stdin().read_line(&mut input).expect("Failed to read line");
         choice = input.trim().parse::<usize>().unwrap();

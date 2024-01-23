@@ -8,9 +8,7 @@ edition = "2021"
 
 rand = "0.8.5"
 hex = "0.4.3"
-
-#Handling packets
-pcap = "1.1.0"
+pcap = "1.2.0"
 tokio = "1.34.0"
 etherparse = "0.13"
 

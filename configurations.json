@@ -64,5 +64,11 @@
     "secure_net": "192.168.0.17",
     "unsecure_net": "192.168.0.15",
     "aes_type": "AesCtr"
+  },
+  {
+    "config_name": "Save18",
+    "secure_net": "192.168.0.5",
+    "unsecure_net": "192.168.0.8",
+    "aes_type": "AesGcmSiv"
   }
 ]
