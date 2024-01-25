@@ -55,8 +55,8 @@
   },
   {
     "config_name": "Save13",
-    "secure_net": "192.168.0.17",
-    "unsecure_net": "192.168.0.15",
+    "secure_net": "127.0.0.1",
+    "unsecure_net": "127.0.0.1",
     "aes_type": "AesCtr"
   },
   {

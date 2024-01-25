@@ -2,26 +2,17 @@ use std::sync::mpsc::{Receiver, Sender};
 use crate::must::processing_unit::actions_chain::filter::Filter;
 use crate::must::processing_unit::actions_chain::filter::Protocol::UDP;
 
-pub struct ProcessorUnit {
-    packet_data_rx: Receiver<Vec<u8>>,
-    processed_data_tx: Sender<Vec<u8>>,
-}
+pub struct ProcessorUnit;
 
 impl ProcessorUnit {
-    pub fn new(packet_data_rx: Receiver<Vec<u8>>, processed_data_tx: Sender<Vec<u8>>) -> ProcessorUnit {
-        ProcessorUnit {
-            packet_data_rx,
-            processed_data_tx,
-        }
-    }
 
-    pub fn process(&self) {
+    pub(crate) fn process(packet_data_rx: Receiver<Vec<u8>>, processed_data_tx: Sender<Vec<u8>>) {
         let running = true;
         let ip = "38.0.101.76";
         println!("In Process");
 
         while running {
-            let packet_vec = match self.packet_data_rx.recv() {
+            let packet_vec = match packet_data_rx.recv() {
                 Ok(data) => data,
                 Err(e) => {
                     println!("Failed to receive data: {:?}", e);
@@ -37,7 +28,7 @@ impl ProcessorUnit {
                 // Process packet data as needed
 
                 // Send processed data to the next stage
-                match self.processed_data_tx.send(packet_vec) {
+                match processed_data_tx.send(packet_vec) {
                     Ok(_) => println!("Processed data sent to next stage"),
                     Err(e) => println!("Failed to send processed data: {:?}", e),
                 }

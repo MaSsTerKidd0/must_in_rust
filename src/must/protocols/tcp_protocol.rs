@@ -1,34 +1,50 @@
-
-use std::net::{TcpListener, TcpStream, SocketAddr};
-use std::io::{self, Read, Write};
+use std::net::{TcpListener, TcpStream, SocketAddr, IpAddr};
+use std::io::{self, Read, Write, Result};
+use std::sync::mpsc::{Receiver, Sender};
 use crate::must::protocols::protocol::Protocol;
 
 pub struct TcpProtocol {
-    addr: SocketAddr,
+    pub(crate) listener: TcpListener,
 }
 
 impl Protocol for TcpProtocol {
     fn new(addr: SocketAddr) -> Self {
-        TcpProtocol { addr }
+        let listener = TcpListener::bind(addr)
+            .expect("Failed to bind TCP listener to address");
+        TcpProtocol { listener }
     }
 
-    fn receive(&self) -> io::Result<Option<String>> {
-        let listener = TcpListener::bind(self.addr)?;
-        match listener.accept() {
-            Ok((mut stream, _)) => {
-                let mut buffer = vec![0; 1024];
-                let bytes_read = stream.read(&mut buffer)?;
-                buffer.truncate(bytes_read);
-                Ok(Some(String::from_utf8_lossy(&buffer).to_string()))
-            },
-            Err(e) => Err(e),
+    fn receive(&self, sender: Sender<Vec<u8>>) {
+        for stream in self.listener.incoming() {
+            match stream {
+                Ok(mut stream) => {
+                    let mut buffer = vec![0; 1024];
+                    let bytes_read = stream.read(&mut buffer);
+                    buffer.truncate(bytes_read.unwrap());
+                    sender.send(buffer).expect("Failed to send data");
+                },
+                Err(e) => println!("Error Occurred TCP"),
+            }
         }
     }
 
-    fn send(&self, target_addr: String, message: &[u8]) -> io::Result<()> {
-        let target_socket_addr: SocketAddr = target_addr.parse().map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "Invalid address format"))?;
-        let mut stream = TcpStream::connect(target_socket_addr)?;
-        stream.write_all(message)?;
-        Ok(())
+    fn send(&self, target_addr: IpAddr, target_port: u16, receiver: Receiver<Vec<u8>>) {
+        let target_socket_addr = SocketAddr::new(target_addr, target_port);
+        match TcpStream::connect(target_socket_addr) {
+            Ok(mut stream) => {
+                while let Ok(message) = receiver.recv() {
+                    match stream.write_all(&message) {
+                        Ok(_) => (),
+                        Err(e) => {
+                            eprintln!("Failed to send message: {}", e);
+                            break; // Optional: decide if you want to stop on error or just log it
+                        }
+                    }
+                }
+            },
+            Err(e) => {
+                eprintln!("Failed to connect to target address: {}", e);
+            }
+        }
     }
 }

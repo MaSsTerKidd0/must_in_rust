@@ -26,7 +26,7 @@ use crate::must::protocols::protocol::Protocol;
 use crate::must::protocols::tcp_protocol::TcpProtocol;
 use crate::must::protocols::udp_protocol::UdpProtocol;
 use crate::must::receive_unit::receive::ReceiveUnit;
-use crate::must::send_unit::send::SendUnit;
+use crate::must::send_unit::send::{SendUnit};
 use crate::must::web_api::handlers;
 use crate::must::web_api::handlers::config_handler::find_config_by_name;
 
@@ -66,46 +66,27 @@ use crate::must::web_api::handlers::config_handler::find_config_by_name;
 //         .run()
 //         .await
 // }
-use std::env;
 fn main(){
-    env::set_var("RUST_BACKTRACE", "full3");
     let configuration_name = "Save13";
     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 
-    // Parse the secure_net and unsecure_net into SocketAddr
     let mut secure_net = String::from(config.secure_net);
-    secure_net.push_str(":62773");
-
     let mut  unsecure_net = String::from(config.unsecure_net);
-    unsecure_net.push_str(":51766");
-
-    let secure_addr: SocketAddr = secure_net.parse().expect("Invalid secure net address");
-    let unsecure_addr: SocketAddr = unsecure_net.parse().expect("Invalid unsecure net address");
-
 
     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
 
     let device = device_picker();
-    println!("Selected device: {}", device.clone().desc.clone().unwrap());
+    println!("Selected device: {}", device.desc.clone().unwrap());
+    
 
-    let receive_handler = ReceiveUnit::new(device, pre_process_sender);
-    let processor_handler = ProcessorUnit::new(pre_process_receiver, post_process_sender);
-    let send_handler = SendUnit::new(UdpProtocol::new(unsecure_addr), unsecure_net.parse().unwrap(),17,post_process_receiver);
-
-    let thread1 = thread::spawn(move|| receive_handler.receive());
-    let thread2 = thread::spawn(move|| processor_handler.process());
-    let thread3 = thread::spawn(move|| send_handler.send());
-
+    let thread1 = thread::spawn(move|| ReceiveUnit::receive(device, pre_process_sender));
+    let thread2 = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender));
+    let thread3 = thread::spawn(move|| SendUnit::new_udp(secure_net.parse().unwrap(), 17).send(unsecure_net.parse().unwrap(),51766 , post_process_receiver));
 
     thread1.join().unwrap();
     thread2.join().unwrap();
     thread3.join().unwrap();
-}
-
-
-fn handle_transmission(configuration_name: &str) {
-
 }
 
 
@@ -141,6 +122,7 @@ fn device_picker() -> Device {
     while choice < 1 || choice > devices.len(){
         println!("Select a device");
         show_devices();
+        print!("Please choose device:");
         let mut input = String::new();
         io::stdin().read_line(&mut input).expect("Failed to read line");
         choice = input.trim().parse::<usize>().unwrap();
