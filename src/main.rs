@@ -43,52 +43,53 @@ use crate::must::web_api::handlers::config_handler::find_config_by_name;
 //total hours wasted here: 212
 //
 
-// #[actix_web::main]
-// async fn main() -> std::io::Result<()> {
-//     std::env::set_var("RUST_LOG", "actix_web=debug");
-//     env_logger::init();
-//
-//     HttpServer::new(move || {
-//         let cors = Cors::default()
-//             .allowed_origin_fn(|origin, _req_head| {
-//                 true
-//             })
-//             .allowed_methods(vec!["GET", "POST", "OPTIONS"])
-//             .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
-//             .max_age(3600);
-//         App::new()
-//             .wrap(Logger::default())
-//             .wrap(cors)
-//             .configure(handlers::config)
-//             .service(handlers::login)
-//     })
-//         .bind("127.0.0.1:8080")?
-//         .run()
-//         .await
-// }
-fn main(){
-    let configuration_name = "Save13";
-    let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "actix_web=debug");
+    env_logger::init();
 
-    let mut secure_net = String::from(config.secure_net);
-    let mut  unsecure_net = String::from(config.unsecure_net);
-
-    let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-
-    let device = device_picker();
-    println!("Selected device: {}", device.desc.clone().unwrap());
-    
-
-    let thread1 = thread::spawn(move|| ReceiveUnit::receive(device, pre_process_sender));
-    let thread2 = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender));
-    let thread3 = thread::spawn(move|| SendUnit::new_udp(secure_net.parse().unwrap(), 17).send(unsecure_net.parse().unwrap(),51766 , post_process_receiver));
-
-    thread1.join().unwrap();
-    thread2.join().unwrap();
-    thread3.join().unwrap();
+    HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin_fn(|origin, _req_head| {
+                true
+            })
+            .allowed_methods(vec!["GET", "POST", "OPTIONS"])
+            .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
+            .max_age(3600);
+        App::new()
+            .wrap(Logger::default())
+            .wrap(cors)
+            .configure(handlers::config)
+            .service(handlers::login)
+    })
+        .bind("127.0.0.1:8080")?
+        .run()
+        .await
 }
 
+// fn main(){
+//     let configuration_name = "Save13";
+//     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
+//
+//     let mut secure_net = String::from(config.secure_net);
+//     let mut  unsecure_net = String::from(config.unsecure_net);
+//
+//     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+//     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+//
+//     let device = device_picker();
+//     println!("Selected device: {}", device.desc.clone().unwrap());
+//
+//
+//     let thread1 = thread::spawn(move|| ReceiveUnit::receive(device, pre_process_sender));
+//     let thread2 = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender));
+//     let thread3 = thread::spawn(move|| SendUnit::new_udp(secure_net.parse().unwrap(), 17).send(unsecure_net.parse().unwrap(),51766 , post_process_receiver));
+//
+//     thread1.join().unwrap();
+//     thread2.join().unwrap();
+//     thread3.join().unwrap();
+// }
+//
 
 
 
