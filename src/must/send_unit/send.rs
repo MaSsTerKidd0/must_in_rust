@@ -42,7 +42,6 @@ pub enum SendUnitConstructor {
 }
 
 impl SendUnit {
-    // Function to construct a SendUnit based on the provided enum
     fn new(ctor: SendUnitConstructor) -> ProtocolType {
         match ctor {
             SendUnitConstructor::Udp(ip_addr, port) => {

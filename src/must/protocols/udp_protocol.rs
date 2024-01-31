@@ -19,10 +19,7 @@ impl Protocol for UdpProtocol {
         let mut buffer = [0; 1024];
         match self.socket.recv_from(&mut buffer) {
             Ok((number_of_bytes, _src_addr)) => {
-                // Create a Vec from the received bytes
                 let data = buffer[..number_of_bytes].to_vec();
-
-                // Send the message through the sender
                 if let Err(e) = sender.send(data) {
                     eprintln!("Failed to send data: {}", e);
                 }

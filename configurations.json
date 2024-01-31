@@ -2,73 +2,37 @@
   {
     "config_name": "Save1",
     "secure_net": "192.168.0.1",
+    "secure_net_port": 8080,
+    "secure_net_subnet_mask": "255.255.255.0",
+    "secure_net_bandwidth": 100,
     "unsecure_net": "192.168.0.2",
+    "unsecure_net_port": 8081,
+    "unsecure_net_subnet_mask": "255.255.255.0",
+    "unsecure_net_bandwidth": 100,
     "aes_type": "Aes-Gcm-Siv"
-  },
-  {
-    "config_name": "Save2",
-    "secure_net": "192.168.0.3",
-    "unsecure_net": "192.168.0.4",
-    "aes_type": "Aes-Cbc"
-  },
-  {
-    "config_name": "Save3",
-    "secure_net": "192.168.0.5",
-    "unsecure_net": "192.168.0.6",
-    "aes_type": "Aes-Ctr"
-  },
-  {
-    "config_name": "Save4",
-    "secure_net": "192.168.0.6",
-    "unsecure_net": "192.168.0.7",
-    "aes_type": "Aes-Gcm-Siv"
-  },
-  {
-    "config_name": "Save6",
-    "secure_net": "198.128.0.12",
-    "unsecure_net": "198.128.0.18",
-    "aes_type": "AesCtr"
-  },
-  {
-    "config_name": "Save8",
-    "secure_net": "198.168.0.12",
-    "unsecure_net": "198.168.0.48",
-    "aes_type": "AesCtr"
-  },
-  {
-    "config_name": "Save12",
-    "secure_net": "198.128.0.12",
-    "unsecure_net": "198.128.0.18",
-    "aes_type": "AesCtr"
-  },
-  {
-    "config_name": "Save7",
-    "secure_net": "192.168.0.17",
-    "unsecure_net": "192.168.0.69",
-    "aes_type": "AesCbc"
-  },
-  {
-    "config_name": "Save9",
-    "secure_net": "192.168.5.12",
-    "unsecure_net": "192.168.5.48",
-    "aes_type": "AesCtr"
-  },
-  {
-    "config_name": "Save13",
-    "secure_net": "127.0.0.1",
-    "unsecure_net": "127.0.0.1",
-    "aes_type": "AesCtr"
-  },
-  {
-    "config_name": "Save11",
-    "secure_net": "192.168.0.17",
-    "unsecure_net": "192.168.0.15",
-    "aes_type": "AesCtr"
   },
   {
     "config_name": "Save18",
     "secure_net": "192.168.0.5",
+    "secure_net_port": 8080,
+    "secure_net_subnet_mask": "255.255.255.0",
+    "secure_net_bandwidth": 100,
     "unsecure_net": "192.168.0.8",
+    "unsecure_net_port": 8081,
+    "unsecure_net_subnet_mask": "255.255.255.0",
+    "unsecure_net_bandwidth": 100,
     "aes_type": "AesGcmSiv"
+  },
+  {
+    "config_name": "Shay Karni Was Here 31.1.24 *Signature*",
+    "secure_net": "192.168.0.1",
+    "secure_net_port": 8080,
+    "secure_net_subnet_mask": "255.255.255.0",
+    "secure_net_bandwidth": 100,
+    "unsecure_net": "192.168.0.2",
+    "unsecure_net_port": 8081,
+    "unsecure_net_subnet_mask": "255.255.255.0",
+    "unsecure_net_bandwidth": 100,
+    "aes_type": "Aes-Gcm-Siv"
   }
 ]
