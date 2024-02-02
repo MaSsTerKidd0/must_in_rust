@@ -1,21 +1,26 @@
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use crate::must::protocols::protocol::Protocol;
-use std::io;
-use std::sync::mpsc::{self, Receiver, Sender};
-use env_logger::Target;
+use std::sync::mpsc::{Receiver, Sender};
+use std::{io, thread};
+use std::time::Duration;
 
 pub struct UdpProtocol {
-    pub(crate) socket: UdpSocket,
+    socket: UdpSocket,
+    target_socket_addr: SocketAddr,
 }
 
 impl Protocol for UdpProtocol {
-    fn new(addr: SocketAddr) -> Self {
-        let socket = UdpSocket::bind(addr)
-            .expect("Failed to bind to address");
-        UdpProtocol { socket }
+    fn new(local_addr: SocketAddr, target_socket_addr: SocketAddr) -> Self {
+        let socket = UdpSocket::bind(local_addr)
+            .expect("Failed to bind to local address");
+
+        UdpProtocol {
+            socket,
+            target_socket_addr,
+        }
     }
 
-    fn receive(&self, sender: Sender<Vec<u8>> ){
+    fn receive(&self, sender: Sender<Vec<u8>>){
         let mut buffer = [0; 1024];
         match self.socket.recv_from(&mut buffer) {
             Ok((number_of_bytes, _src_addr)) => {
@@ -27,14 +32,22 @@ impl Protocol for UdpProtocol {
             Err(e) => eprintln!("Failed to receive data: {}", e),
         }
     }
-    fn send(&self, target_addr: IpAddr, target_port: u16, receiver: Receiver<Vec<u8>>) {
-        let data = receiver.recv().map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "Channel receive error"));
 
-        // Construct the target socket address from the IP address and the port number
-        let target_socket_addr = SocketAddr::new(target_addr, target_port);
-
-        // Send the data to the target socket address
-        self.socket.send_to(&data.unwrap(), target_socket_addr).expect("TODO: panic message");
+    fn send(&self, receiver: Receiver<Vec<u8>>) {
+        loop {
+            match receiver.recv() {
+                Ok(data) => {
+                    println!("Data Received before Sending: {:?}", data);
+                    if let Err(e) = self.socket.send_to(&data, self.target_socket_addr) {
+                        eprintln!("Failed to send data: {}", e);
+                        // Decide how to handle the error - retry, log, etc.
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Failed to receive data from channel: {}", e);
+                    break; // or handle the error as needed
+                }
+            }
+        }
     }
-
 }
