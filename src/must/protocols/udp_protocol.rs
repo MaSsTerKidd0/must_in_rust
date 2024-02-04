@@ -38,14 +38,15 @@ impl Protocol for UdpProtocol {
             match receiver.recv() {
                 Ok(data) => {
                     println!("Data Received before Sending: {:?}", data);
+
+
                     if let Err(e) = self.socket.send_to(&data, self.target_socket_addr) {
                         eprintln!("Failed to send data: {}", e);
-                        // Decide how to handle the error - retry, log, etc.
                     }
                 },
                 Err(e) => {
                     eprintln!("Failed to receive data from channel: {}", e);
-                    break; // or handle the error as needed
+                    break;
                 }
             }
         }

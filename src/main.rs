@@ -71,8 +71,8 @@ fn main(){
     let configuration_name = "Save18";
     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 
-    let mut secure_net = String::from(config.secure_net);
-    let mut  unsecure_net = String::from(config.unsecure_net);
+    let mut secure_net = String::from(config.secure_net.clone());
+    let mut  unsecure_net = String::from(config.unsecure_net.clone());
 
     let secure_net_port = config.secure_net_port;
     let unsecure_net_port = config.unsecure_net_port;
@@ -83,9 +83,8 @@ fn main(){
     let device = device_picker();
     println!("Selected device: {}", device.desc.clone().unwrap());
 
-
     let thread1 = thread::spawn(move|| ReceiveUnit::receive(device, pre_process_sender));
-    let thread2 = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender));
+    let thread2 = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
     let thread3 = thread::spawn(move|| SendUnit::new_udp(secure_net.parse().unwrap(), secure_net_port, unsecure_net.parse().unwrap(),unsecure_net_port ).send(post_process_receiver));
 
     thread1.join().unwrap();

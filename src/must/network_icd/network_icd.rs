@@ -1,9 +1,16 @@
 use serde::{Serialize, Deserialize};
-
+use bincode;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NetworkICD {
     pub(crate) packet_number: u16,
     pub(crate) seq_number: u16,
     pub(crate) data: Vec<u8>,
+}
+
+impl NetworkICD {
+    pub(crate) fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        // Implement serialization logic here, for example using serde and bincode
+        bincode::serialize(self).map_err(Into::into)
+    }
 }

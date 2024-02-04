@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::net::Ipv4Addr;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ConfigRecord {
     pub config_name: String,
     pub secure_net: String,

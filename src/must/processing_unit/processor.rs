@@ -1,34 +1,64 @@
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use std::time::Duration;
+
+use crate::must::ciphers_lib::AesType;
+use crate::must::ciphers_lib::key_generator::{KeyGenerator, KeySize};
+use crate::must::processing_unit::actions_chain::encrypt;
+use crate::must::processing_unit::actions_chain::encrypt::Encryptor;
 use crate::must::processing_unit::actions_chain::filter::{Filter, Protocol};
 use crate::must::processing_unit::actions_chain::filter::Protocol::{UDP,TCP};
+use crate::must::processing_unit::actions_chain::fragment::Fragment;
+use crate::must::web_api::models::config_record::ConfigRecord;
 
 pub struct ProcessorUnit;
 
 impl ProcessorUnit {
 
-    pub(crate) fn process(packet_data_rx: Receiver<Vec<u8>>, processed_data_tx: Sender<Vec<u8>>) {
+    pub(crate) fn process(packet_data_rx: Receiver<Vec<u8>>, processed_data_tx: Sender<Vec<u8>>, config_record: ConfigRecord) {
         println!("\n\nIn Process");
-
+        let key = KeyGenerator::generate_key(KeySize::Bits256);
+        let aes_type_str: &str = config_record.aes_type.as_str();
+        let fragment_unit = Fragment {
+            first_net_max_bandwidth: 100u16,
+            second_net_max_bandwidth: 100u16,
+        };
         while let Ok(packet_vec) = packet_data_rx.recv() {
             println!("*received packet");
-            if Filter::is_protocol_packet_for_ip(&packet_vec,"127.0.0.1", UDP) {
+
+            if Filter::is_protocol_packet_for_ip(&packet_vec, &config_record.unsecure_net, UDP) {
                 if let Some(payload) = extract_payload(&packet_vec, UDP) {
                     println!("*Passed Filter\n");
 
-                    if let Err(e) = processed_data_tx.send(payload) {
-                        println!("Failed to send processed data: {:?}", e);
-                        break;
+                    //match Encryptor::encrypt_data(&payload, AesType::from_str(aes_type_str), key.clone()) {
+                        //Ok(encrypted_payload) => {
+                            println!("*Passed Encrypted Payload");
+                            let fragmented_packets = fragment_unit.fragment(payload.as_slice());
+                            for packet in fragmented_packets {
+                                match packet.to_bytes() {
+                                    Ok(serialized_packet) => {
+                                        if let Err(e) = processed_data_tx.send(serialized_packet) {
+                                            println!("Failed to send serialized fragmented packet: {:?}", e);
+                                            break;
+                                        }
+                                    },
+                                    Err(e) => {
+                                        println!("Serialization failed: {:?}", e);
+                                    }
+                                }
+                            }
+                       // },
+                        //Err(e) => {
+                            //println!("Encryption failed: {:?}", e);
+                        //}
                     }
                 }
             }
         }
     }
-}
+//}
 
 fn extract_payload(packet_data: &[u8], protocol: Protocol) -> Option<Vec<u8>> {
-    // Ethernet frame is 14 bytes, minimum IP header is 20 bytes
     let ethernet_and_ip_header_length = 14 + 20;
 
     if packet_data.len() < ethernet_and_ip_header_length {
