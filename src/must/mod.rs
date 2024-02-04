@@ -8,3 +8,4 @@ pub mod ciphers_lib;
 pub mod web_api;
 pub mod send_unit;
 pub mod log_handler;
+pub mod log_assistant;

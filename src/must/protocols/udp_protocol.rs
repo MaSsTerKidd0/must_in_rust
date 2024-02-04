@@ -3,6 +3,7 @@ use crate::must::protocols::protocol::Protocol;
 use std::sync::mpsc::{Receiver, Sender};
 use std::{io, thread};
 use std::time::Duration;
+use crate::must::network_icd::network_icd::NetworkICD;
 
 pub struct UdpProtocol {
     socket: UdpSocket,
@@ -37,7 +38,7 @@ impl Protocol for UdpProtocol {
         loop {
             match receiver.recv() {
                 Ok(data) => {
-                    println!("Data Received before Sending: {:?}", data);
+                    println!("Data Received before Sending: {:?}", NetworkICD::from_bytes(data.clone().as_slice()));
 
 
                     if let Err(e) = self.socket.send_to(&data, self.target_socket_addr) {

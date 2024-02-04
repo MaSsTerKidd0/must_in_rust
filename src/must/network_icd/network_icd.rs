@@ -13,4 +13,7 @@ impl NetworkICD {
         // Implement serialization logic here, for example using serde and bincode
         bincode::serialize(self).map_err(Into::into)
     }
+    pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        bincode::deserialize(bytes).map_err(Into::into)
+    }
 }

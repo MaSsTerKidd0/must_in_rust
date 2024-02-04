@@ -20,6 +20,8 @@ use crate::must::ciphers_lib::rsa_crypto::RsaCryptoKeys;
 use actix_web::{web, App, HttpServer, middleware::Logger, HttpResponse};
 use actix_cors::Cors;
 use actix_web::http::header;
+use crate::must::log_assistant::LogAssistant;
+use crate::must::log_handler::LOG_HANDLER;
 use crate::must::processing_unit::actions_chain::filter::Protocol::UDP;
 use crate::must::processing_unit::processor::ProcessorUnit;
 use crate::must::protocols::protocol::Protocol;
@@ -91,17 +93,6 @@ fn main(){
     thread2.join().unwrap();
     thread3.join().unwrap();
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 fn show_devices() {
