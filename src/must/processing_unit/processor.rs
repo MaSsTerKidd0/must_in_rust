@@ -1,10 +1,10 @@
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::must::ciphers_lib::AesType;
 use crate::must::ciphers_lib::key_generator::{KeyGenerator, KeySize};
-use crate::must::log_assistant::LogAssistant;
+use crate::must::log_assistant::{LogAssistant, OperationId};
 use crate::must::log_handler::LOG_HANDLER;
 use crate::must::processing_unit::actions_chain::encrypt;
 use crate::must::processing_unit::actions_chain::encrypt::Encryptor;
@@ -23,6 +23,10 @@ impl ProcessorUnit {
             first_net_max_bandwidth: 32u16,
             second_net_max_bandwidth: 32u16,
         };
+
+        let mut packet_counter: u32 = 0;
+        let mut start_time = Instant::now();
+
         while let Ok(packet_vec) = packet_data_rx.recv() {
             if Filter::is_protocol_packet_for_ip(&packet_vec, &config_record.unsecure_net, UDP) {
                 if let Some(payload) = extract_payload(&packet_vec, UDP) {
@@ -33,24 +37,30 @@ impl ProcessorUnit {
                                 match packet.to_bytes() {
                                     Ok(serialized_packet) => {
                                         if let Err(e) = processed_data_tx.send(serialized_packet) {
-                                            LogAssistant::fragment_failure();
+                                            LogAssistant::fragment_failure(OperationId::Fragmentation);
                                             break;
                                         }
-                                        LogAssistant::send_success();
+                                        packet_counter += 1; // Increment the packet counter
+                                        if start_time.elapsed() >= Duration::new(1, 0) {
+                                            LogAssistant::send_success(OperationId::SendPacket, packet_counter);
+                                            packet_counter = 0; // Reset the counter
+                                            start_time = Instant::now(); // Reset the timer
+                                        }
                                     }
                                     Err(e) => {
-                                        LogAssistant::serialize_failure();
+                                        LogAssistant::serialize_failure(OperationId::Serialization);
                                     }
                                 }
                             }
                         }
                         Err(e) => {
-                            LogAssistant::cipher_failure();
+                            LogAssistant::cipher_failure(OperationId::Cipher);
                         }
                     }
                 }
             }
         }
+
         fn extract_payload(packet_data: &[u8], protocol: Protocol) -> Option<Vec<u8>> {
             let ethernet_and_ip_header_length = 14 + 20;
 
@@ -58,14 +68,11 @@ impl ProcessorUnit {
                 return None;
             }
 
-            // Calculate the total header size based on the protocol
-            // Add the length of the Ethernet frame to the header size
             let header_size = match protocol {
-                TCP => ethernet_and_ip_header_length + 20, // Ethernet + IP header + TCP header
-                UDP => ethernet_and_ip_header_length + 8,  // Ethernet + IP header + UDP header
+                TCP => ethernet_and_ip_header_length + 20,
+                UDP => ethernet_and_ip_header_length + 8,
             };
 
-            // Extract the payload
             if packet_data.len() > header_size {
                 Some(packet_data[header_size..].to_vec())
             } else {
