@@ -9,16 +9,15 @@ pub struct RsaCryptoKeys {
 }
 
 impl RsaCryptoKeys {
-    // Function to create new instance with generated keys
     pub fn new(bits: usize) -> Result<Self, Box<dyn Error>> {
         let mut rng = OsRng;
         let private_key = RsaPrivateKey::new(&mut rng, bits)?;
         let public_key = RsaPublicKey::from(&private_key);
-        Ok(RsaCryptoKeys { private_key, public_key })
+        return Ok(RsaCryptoKeys { private_key, public_key });
     }
 
     pub fn get_public_key(&self) -> &RsaPublicKey {
-        &self.public_key
+        return &self.public_key;
     }
     pub fn encrypt(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
         let mut rng = OsRng;

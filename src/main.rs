@@ -20,6 +20,7 @@ use crate::must::ciphers_lib::rsa_crypto::RsaCryptoKeys;
 use actix_web::{web, App, HttpServer, middleware::Logger, HttpResponse};
 use actix_cors::Cors;
 use actix_web::http::header;
+use chrono::Local;
 use crate::must::log_assistant::LogAssistant;
 use crate::must::log_handler::LOG_HANDLER;
 use crate::must::processing_unit::actions_chain::filter::Protocol::UDP;
@@ -31,6 +32,7 @@ use crate::must::receive_unit::receive::ReceiveUnit;
 use crate::must::send_unit::send::{SendUnit};
 use crate::must::web_api::handlers;
 use crate::must::web_api::handlers::config_handler::find_config_by_name;
+use crate::must::web_api::models::rsa_record::PublicKeyData;
 
 //Dear programmer :)
 //When I wrote this code, only god and
@@ -64,6 +66,7 @@ async fn main() -> std::io::Result<()> {
             .configure(handlers::config)
             .configure(handlers::dashboard)
             .service(handlers::login)
+            .service(handlers::rsa)
 
     })
         .bind("127.0.0.1:8080")?
@@ -72,6 +75,8 @@ async fn main() -> std::io::Result<()> {
 }
 
 // fn main(){
+//     generate_and_display_rsa_keys();
+//
 //     let configuration_name = "Save18";
 //     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 //
@@ -192,29 +197,22 @@ fn perform_aes_encryption_and_decryption(key: &[u8], nonce_bytes: &[u8; 16]) {
 fn generate_and_display_rsa_keys() {
     let rsa = RsaCryptoKeys::new(2048).unwrap();
     let public_key = rsa.get_public_key();
-    let n = public_key.n();
-    let e = public_key.e();
 
-    let n_hex = hex::encode(n.to_bytes_be());
-    let e_hex = hex::encode(e.to_bytes_be());
+    let n_hex = hex::encode(public_key.n().to_bytes_be());
+    let e_hex = hex::encode(public_key.e().to_bytes_be());
+
+    let public_key_data = PublicKeyData {
+        modulus: n_hex.clone(),
+        exponent: e_hex.clone(),
+        date: Local::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+    };
 
     println!("Public Key:");
-    println!("Modulus (n): {}", n_hex);
-    println!("Exponent (e): {}", e_hex);
+    println!("Modulus (n): {}", n_hex.clone());
+    println!("Exponent (e): {}", e_hex.clone());
 
-    let data = b"Hello, world!";
+    let file_path = "public_key.json";
+    JsonHandler::save(file_path, &public_key_data).expect("Failed to save public key");
 
-    let res_enc = rsa.encrypt(data).expect("TODO: panic message");
-    println!("Encrypted RSA: {:?}", res_enc);
-    let res_dec = rsa.decrypt(res_enc.as_slice()).expect("TOD");
-    println!("Decrypted RSA: {:?}", String::from_utf8_lossy(res_dec.as_slice()));
 }
-// let (key, nonce_bytes) = generate_key_and_nonce();
-// perform_aes_encryption_and_decryption(&key, &nonce_bytes);
-// generate_and_display_rsa_keys();
 
-//let device = device_picker();
-
-//let fragmented_packets = check_fragmentation();
-//check_assemble_packets(fragmented_packets);
-//}

@@ -1,5 +1,6 @@
 use aes_gcm_siv::Nonce;
 
+#[derive(Clone)]
 pub enum AesType {
     AesGcmSiv,
     AesCtr,
