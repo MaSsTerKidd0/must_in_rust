@@ -41,5 +41,7 @@ chrono = "0.4.33"
 lazy_static = "1.4.0"
 
 
+pem = "3.0.3"
+
 [profile.dev.package.num-bigint-dig]
 opt-level = 3
