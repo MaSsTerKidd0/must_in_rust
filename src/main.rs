@@ -1,4 +1,4 @@
-#![allow(warnings)]
+#![allow(unused)]
 mod must;
 use crate::must::processing_unit::actions_chain::fragment::{Fragment};
 
@@ -75,8 +75,6 @@ use crate::must::web_api::models::rsa_record::PublicKeyData;
 // }
 
 fn main(){
-    generate_and_display_rsa_keys();
-
     let configuration_name = "Save18";
     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 
@@ -201,18 +199,9 @@ fn generate_and_display_rsa_keys() {
     let n_hex = hex::encode(public_key.n().to_bytes_be());
     let e_hex = hex::encode(public_key.e().to_bytes_be());
 
-    let public_key_data = PublicKeyData {
-        modulus: n_hex.clone(),
-        exponent: e_hex.clone(),
-        date: Local::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
-    };
-
     println!("Public Key:");
     println!("Modulus (n): {}", n_hex.clone());
     println!("Exponent (e): {}", e_hex.clone());
 
-    let file_path = "public_key.json";
-    JsonHandler::save(file_path, &public_key_data).expect("Failed to save public key");
-
+    rsa.save_keys().expect("TODO: panic message");
 }
-

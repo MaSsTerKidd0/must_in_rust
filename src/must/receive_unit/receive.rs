@@ -10,7 +10,7 @@ impl ReceiveUnit {
         println!("listening on {:?}", device.desc.clone().unwrap());
         while let Ok(packet) = cap.next_packet() {
             thread::sleep(Duration::from_millis(1));
-            packet_data_tx.send(packet.data.clone().to_vec()).unwrap();
+            packet_data_tx.send(packet.data.to_vec()).unwrap();
         }
     }
 }

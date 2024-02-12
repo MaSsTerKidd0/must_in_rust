@@ -38,9 +38,6 @@ impl Protocol for UdpProtocol {
         loop {
             match receiver.recv() {
                 Ok(data) => {
-                    println!("Data Received before Sending: {:?}", NetworkICD::from_bytes(data.clone().as_slice()));
-
-
                     if let Err(e) = self.socket.send_to(&data, self.target_socket_addr) {
                         eprintln!("Failed to send data: {}", e);
                     }

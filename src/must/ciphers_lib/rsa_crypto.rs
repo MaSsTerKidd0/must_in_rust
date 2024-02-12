@@ -5,6 +5,9 @@ use std::fs::File;
 use std::io::Write;
 use rsa::pkcs1::EncodeRsaPublicKey;
 use rsa::pkcs8::EncodePrivateKey;
+use pem::parse;
+use std::fs;
+
 
 
 pub struct RsaCryptoKeys {
@@ -48,5 +51,14 @@ impl RsaCryptoKeys {
         let padding = Oaep::new::<Sha256>();
         self.private_key.decrypt(padding, ciphertext)
             .map_err(|e| e.into())
+    }
+
+    fn read_rsa_public_key_from_pem(pem_path: &str) -> Result<RsaPublicKey, Box<dyn std::error::Error>> {
+        let pem_contents = fs::read_to_string(pem_path)?;
+        let pem = parse(pem_contents)?;
+
+        // Decode the RSA public key from PKCS#1 PEM format
+        let public_key = RsaPublicKey::from_pkcs1(&pem.contents())?;
+        Ok(public_key)
     }
 }
