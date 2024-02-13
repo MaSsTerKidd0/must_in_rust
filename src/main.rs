@@ -79,6 +79,7 @@ use crate::must::web_api::models::rsa_record::PublicKeyData;
 // }
 
 fn main(){
+    RsaCryptoKeys::generate(RsaKeySize::Bits2048);
     let configuration_name = "Save18";
     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 
