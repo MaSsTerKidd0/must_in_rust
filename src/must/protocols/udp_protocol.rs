@@ -12,6 +12,7 @@ pub struct UdpProtocol {
 
 impl Protocol for UdpProtocol {
     fn new(local_addr: SocketAddr, target_socket_addr: SocketAddr) -> Self {
+        println!("{:?}:{:?}", local_addr.ip(), local_addr.port());
         let socket = UdpSocket::bind(local_addr)
             .expect("Failed to bind to local address");
 
@@ -23,6 +24,7 @@ impl Protocol for UdpProtocol {
 
     fn receive(&self, sender: Sender<Vec<u8>>){
         let mut buffer = [0; 1024];
+
         match self.socket.recv_from(&mut buffer) {
             Ok((number_of_bytes, _src_addr)) => {
                 let data = buffer[..number_of_bytes].to_vec();

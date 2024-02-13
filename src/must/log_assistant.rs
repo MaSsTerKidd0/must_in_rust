@@ -24,7 +24,6 @@ impl OperationId {
             OperationId::Serialization => "serialization",
             OperationId::Fragmentation => "fragmentation",
             OperationId::Cipher => "cipher",
-            // Match other operations as needed
         }
     }
 }

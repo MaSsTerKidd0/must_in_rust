@@ -3,8 +3,9 @@ mod must;
 use crate::must::processing_unit::actions_chain::fragment::{Fragment};
 
 use std::collections::VecDeque;
-use std::{io, thread};
+use std::{fs, io, thread};
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 use pcap::Device;
 use crate::must::ciphers_lib::key_generator::{KeyGenerator, KeySize};
 use crate::must::json_handler::JsonHandler;
@@ -15,12 +16,15 @@ use rsa::traits::PublicKeyParts;
 use crate::must::ciphers_lib::aes_cipher_trait::AesCipher;
 use crate::must::ciphers_lib::aes_modes::aes_cbc_cipher::AesCbc;
 use crate::must::ciphers_lib::aes_modes::aes_ctr_cipher::AesCtr;
-use crate::must::ciphers_lib::rsa_crypto::RsaCryptoKeys;
+use crate::must::ciphers_lib::rsa_crypto::{RsaCryptoKeys, RsaKeySize};
 
 use actix_web::{web, App, HttpServer, middleware::Logger, HttpResponse};
 use actix_cors::Cors;
 use actix_web::http::header;
 use chrono::Local;
+use pem::parse;
+use rsa::pkcs1::DecodeRsaPublicKey;
+use rsa::RsaPublicKey;
 use crate::must::log_assistant::LogAssistant;
 use crate::must::log_handler::LOG_HANDLER;
 use crate::must::processing_unit::actions_chain::filter::Protocol::UDP;
@@ -40,7 +44,7 @@ use crate::must::web_api::models::rsa_record::PublicKeyData;
 //Now, only god knows it!
 //
 //Therefore, if you are trying to optimize
-//this routine and it fails (most surely),
+//this routine, and it fails (most surely),
 //please increase this counter as a
 //warning for the next person:
 //
@@ -84,19 +88,41 @@ fn main(){
     let secure_net_port = config.secure_net_port;
     let unsecure_net_port = config.unsecure_net_port;
     println!("Secure-{}:{}, Unsecure-{}:{}",secure_net, secure_net_port, unsecure_net, unsecure_net_port);
+
+    let (sender, receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
 
     let device = device_picker();
     println!("Selected device: {}", device.desc.clone().unwrap());
+    //post_process_sender.send(Vec::from(RsaCryptoKeys::get_public_key_pem().unwrap()));
 
-    let thread1 = thread::spawn(move|| ReceiveUnit::receive(device, pre_process_sender));
-    let thread2 = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
-    let thread3 = thread::spawn(move|| SendUnit::new_udp(secure_net.parse().unwrap(), secure_net_port, unsecure_net.parse().unwrap(),unsecure_net_port ).send(post_process_receiver));
+    let connection_handler = Arc::new(Mutex::new(SendUnit::new_udp(
+        secure_net.parse().unwrap(),
+        secure_net_port,
+        unsecure_net.parse().unwrap(),
+        unsecure_net_port,
+    )));
 
-    thread1.join().unwrap();
-    thread2.join().unwrap();
-    thread3.join().unwrap();
+    let handler_clone = connection_handler.clone();
+    let temp_thread = thread::spawn(move || {
+        let mut handler = handler_clone.lock().unwrap();
+        handler.receive(sender)
+    });
+
+    // Clone `connection_handler` for each subsequent thread that needs it
+    let handler_clone = connection_handler.clone();
+    let send_thread = thread::spawn(move || {
+        let mut handler = handler_clone.lock().unwrap();
+        handler.send(post_process_receiver)
+    });
+
+    let receive_thread = thread::spawn(move|| ReceiveUnit::receive(device, pre_process_sender));
+    let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
+
+    receive_thread.join().unwrap();
+    process_thread.join().unwrap();
+    send_thread.join().unwrap();
 }
 
 
@@ -126,34 +152,9 @@ fn device_picker() -> Device {
         io::stdin().read_line(&mut input).expect("Failed to read line");
         choice = input.trim().parse::<usize>().unwrap();
     }
-    return devices.get(choice-1).unwrap().clone();
+    return devices.get(choice - 1).unwrap().clone();
 }
-fn check_fragmentation() -> VecDeque<NetworkICD>{
-    let text = "Hello, ipsum dolor sit amet consectetur adipisicing elit. Maxime mollitia,
-molestiae quas vel sint commodi repudiandae consequuntur voluptatum laborum
-numquam blanditiis harum quisquam eius sed odit fugiat iusto fuga praesentium
-optio, eaque rerum! Provident similique accusantium nemo autem. Veritatis
-obcaecati tenetur iure eius earum ut molestias architecto voluptate aliquam
-nihil, eveniet aliquid culpa officia aut! Impedit sit sunt quaerat, odit,
-tenetur error, harum nesciunt ipsum debitis quas aliquid. Reprehenderit,
-quia. Quo neque error repudiandae fuga? Ipsa laudantium molestias eos
-sapiente officiis modi at sunt excepturi expedita sint? Sed quibusdam
-recusandae alias error harum maxime adipisci amet laborum. Perspiciatis
-minima nesciunt dolorem! Officiis iure rerum voluptates a cumque velit
-quibusdam sed amet tempora. Sit laborum ab, eius fugit doloribus tenetur
-fugiat, temporibus enim commodi iusto libero magni deleniti quod quam
-consequuntur! Commodi minima excepturi repudiandae velit hic maxime
-doloremque...
-";
-    let encoded_text = text.as_bytes();
 
-    let max_bandwidth_net1 = 1024;
-    let max_bandwidth_net2 = 512;
-
-    let fragmenter= JsonHandler::load::<Fragment>("fragmentation_config.json");
-    let fragmented_packets = fragmenter.unwrap().fragment(encoded_text);
-    return fragmented_packets;
-}
 fn check_assemble_packets(packets: VecDeque<NetworkICD>){
     let assemble = Fragment{
         first_net_max_bandwidth: 0,
@@ -161,14 +162,13 @@ fn check_assemble_packets(packets: VecDeque<NetworkICD>){
     };
 
     let assembled_packet = assemble.assemble(packets);
-    match convert_dec_to_ascii(assembled_packet) {
+    match String::from_utf8(assembled_packet) {
         Ok(s) => println!("Converted ASCII: {}", s),
         Err(e) => println!("Failed to convert: {}", e),
     }
 }
-fn convert_dec_to_ascii(vec: Vec<u8>) -> Result<String, std::string::FromUtf8Error> {
-    String::from_utf8(vec)
-}
+
+//TODO: use this to generate random nonce put in the aes
 fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16]) {
     let key = KeyGenerator::generate_key(KeySize::Bits256);
     println!("key: {:?}", hex::encode(&key));
@@ -178,30 +178,4 @@ fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16]) {
     println!("Nonce: {:?}", hex::encode(&nonce_bytes));
 
     (key, nonce_bytes)
-}
-fn perform_aes_encryption_and_decryption(key: &[u8], nonce_bytes: &[u8; 16]) {
-    let data = b"Hello, world!";
-    match AesCtr::encrypt(data, key.to_vec(), nonce_bytes) {
-        Ok(encrypted_data) => {
-            println!("Encrypted Data: {:?}", hex::encode(&encrypted_data));
-            match AesCtr::decrypt(&encrypted_data, key.to_vec(), nonce_bytes) {
-                Ok(decrypted_data) => println!("Decrypted Data: {:?}", String::from_utf8_lossy(&decrypted_data)),
-                Err(e) => println!("Decryption error: {}", e),
-            }
-        }
-        Err(e) => println!("Encryption error: {}", e),
-    }
-}
-fn generate_and_display_rsa_keys() {
-    let rsa = RsaCryptoKeys::new(2048).unwrap();
-    let public_key = rsa.get_public_key();
-
-    let n_hex = hex::encode(public_key.n().to_bytes_be());
-    let e_hex = hex::encode(public_key.e().to_bytes_be());
-
-    println!("Public Key:");
-    println!("Modulus (n): {}", n_hex.clone());
-    println!("Exponent (e): {}", e_hex.clone());
-
-    rsa.save_keys().expect("TODO: panic message");
 }

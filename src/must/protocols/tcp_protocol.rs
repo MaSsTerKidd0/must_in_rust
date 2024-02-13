@@ -1,6 +1,7 @@
 use std::net::{TcpListener, TcpStream, SocketAddr};
 use std::io::{self, Read, Write};
 use std::sync::mpsc::{Receiver, Sender};
+use crate::must::log_assistant::{LogAssistant, OperationId};
 use crate::must::protocols::protocol::Protocol;
 
 pub struct TcpProtocol {
@@ -42,7 +43,7 @@ impl Protocol for TcpProtocol {
                 while let Ok(message) = receiver.recv() {
                     if let Err(e) = stream.write_all(&message) {
                         eprintln!("Failed to send message: {}", e);
-                        break; // Decide if you want to stop on error or just log it
+                        LogAssistant::send_error(OperationId::SendPacket);
                     }
                 }
             },
