@@ -31,6 +31,8 @@ pub struct RsaCryptoKeys {
     public_key: RsaPublicKey,
 }
 
+
+
 impl RsaCryptoKeys {
     pub(crate) fn generate(bits: RsaKeySize) -> Result<(), Box<dyn Error>> {
         let mut rng = OsRng;

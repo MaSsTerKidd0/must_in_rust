@@ -1,6 +1,8 @@
+use std::ops::Deref;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use std::time::{Duration, Instant};
+use rsa::pkcs1::EncodeRsaPublicKey;
 use rsa::RsaPublicKey;
 use crate::must::ciphers_lib::AesType;
 use crate::must::ciphers_lib::key_generator::{KeyGenerator, KeySize};
@@ -21,6 +23,7 @@ impl ProcessorUnit {
 
         let aes_type = AesType::from_str(&config_record.aes_type).unwrap();
         let rsa = RsaCryptoKeys::load().unwrap();
+        processed_data_tx.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
 
         let fragment_unit = Fragment {
             first_net_max_bandwidth: config_record.unsecure_net_bandwidth as u16,
