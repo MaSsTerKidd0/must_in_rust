@@ -95,7 +95,7 @@ fn main(){
 
     let device = device_picker();
     println!("Selected device: {}", device.desc.clone().unwrap());
-    //post_process_sender.send(Vec::from(RsaCryptoKeys::get_public_key_pem().unwrap()));
+    post_process_sender.send(Vec::from(RsaCryptoKeys::get_public_key_pem().unwrap()));
 
     let connection_handler = Arc::new(Mutex::new(SendUnit::new_udp(
         secure_net.parse().unwrap(),
