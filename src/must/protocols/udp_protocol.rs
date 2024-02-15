@@ -6,7 +6,7 @@ use std::time::Duration;
 use crate::must::network_icd::network_icd::NetworkICD;
 
 pub struct UdpProtocol {
-    socket: UdpSocket,
+    pub(crate) socket: UdpSocket,
     target_socket_addr: SocketAddr,
 }
 

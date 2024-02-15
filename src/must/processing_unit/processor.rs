@@ -76,32 +76,6 @@ impl ProcessorUnit {
             }
         }
     }
-    // fn fragment_and_send_packets(encrypted_payload: Vec<u8>,
-    //                              fragment_unit: &Fragment,
-    //                              processed_data_tx: &Sender<Vec<u8>>,
-    //                              packet_counter: &mut u32, start_time: &mut Instant,
-    //                              aes_key: Vec<u8>,
-    //                              rsa_public_key: RsaPublicKey)
-    // {
-    //     let fragmented_packets = fragment_unit.fragment(encrypted_payload.as_slice(), aes_key.clone());
-    //     for packet in fragmented_packets {
-    //         if let Ok(serialized_packet) = packet.to_bytes() {
-    //
-    //             if let Err(_) = processed_data_tx.send(serialized_packet) {
-    //                 LogAssistant::fragment_failure(OperationId::Fragmentation);
-    //                 break;
-    //             }
-    //             *packet_counter += 1;
-    //             if start_time.elapsed() >= Duration::new(1, 0) {
-    //                 LogAssistant::send_success(OperationId::SendPacket, *packet_counter);
-    //                 *packet_counter = 0;
-    //                 *start_time = Instant::now();
-    //             }
-    //         } else {
-    //             LogAssistant::serialize_failure(OperationId::Serialization);
-    //         }
-    //     }
-    // }
     fn extract_payload(packet_data: &[u8], protocol: Protocol) -> Option<Vec<u8>> {
             let ethernet_and_ip_header_length = 14 + 20;
 

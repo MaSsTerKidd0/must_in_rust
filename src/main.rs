@@ -26,7 +26,7 @@ use chrono::Local;
 use pem::parse;
 use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
 use rsa::RsaPublicKey;
-use tokio::net::UdpSocket;
+use std::net::UdpSocket;
 use crate::must::log_assistant::LogAssistant;
 use crate::must::log_handler::LOG_HANDLER;
 use crate::must::processing_unit::actions_chain::filter::Protocol::UDP;
@@ -38,6 +38,7 @@ use crate::must::receive_unit::receive::ReceiveUnit;
 use crate::must::send_unit::send::{SendUnit};
 use crate::must::web_api::handlers;
 use crate::must::web_api::handlers::config_handler::find_config_by_name;
+use crate::must::web_api::models::config_record::ConfigRecord;
 use crate::must::web_api::models::rsa_record::PublicKeyData;
 
 //Dear programmer :)
@@ -53,87 +54,53 @@ use crate::must::web_api::models::rsa_record::PublicKeyData;
 //total hours wasted here: 212
 //
 
-// #[actix_web::main]
-// async fn main() -> std::io::Result<()> {
-//     std::env::set_var("RUST_LOG", "actix_web=debug");
-//     env_logger::init();
-//
-//     HttpServer::new(move || {
-//         let cors = Cors::default()
-//             .allowed_origin_fn(|origin, _req_head| {
-//                 true
-//             })
-//             .allowed_methods(vec!["GET", "POST", "OPTIONS"])
-//             .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
-//             .max_age(3600);
-//         App::new()
-//             .wrap(Logger::default())
-//             .wrap(cors)
-//             .configure(handlers::config)
-//             .configure(handlers::dashboard)
-//             .service(handlers::login)
-//             .service(handlers::rsa)
-//
-//     })
-//         .bind("127.0.0.1:8080")?
-//         .run()
-//         .await
-// }
 
-// fn main(){
-//     let configuration_name = "Save18";
-//     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
-//
-//     let mut secure_net = String::from(config.secure_net.clone());
-//     let mut  unsecure_net = String::from(config.unsecure_net.clone());
-//
-//     let secure_net_port = config.secure_net_port;
-//     let unsecure_net_port = config.unsecure_net_port;
-//     println!("Secure-{}:{}, Unsecure-{}:{}",secure_net, secure_net_port, unsecure_net, unsecure_net_port);
-//
-//     let (sender, receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-//     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-//     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-//
-//     let device = device_picker();
-//     println!("Selected device: {}", device.desc.clone().unwrap());
-//     //let rsa = RsaCryptoKeys::load().unwrap();
-//     //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
-//
-//     let connection_handler = Arc::new(Mutex::new(SendUnit::new_udp(
-//         secure_net.parse().unwrap(),
-//         secure_net_port,
-//         unsecure_net.parse().unwrap(),
-//         unsecure_net_port,
-//     )));
-//
-//     let handler_clone = connection_handler.clone();
-//
-//
-//     let receive_thread = thread::spawn(move|| ReceiveUnit::receive(device, pre_process_sender));
-//     let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
-//     let send_thread = thread::spawn(move || {
-//         let mut handler = handler_clone.lock().unwrap();
-//         handler.send(post_process_receiver)
-//     });
-//
-//
-//     receive_thread.join().unwrap();
-//     process_thread.join().unwrap();
-//     send_thread.join().unwrap();
-// }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let binding = RsaCryptoKeys::get_public_key_pem().unwrap();
+fn main(){
+    let configuration_name = "Save18";
+    let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
+
+
+
+    let mut secure_net = String::from(config.secure_net.clone());
+    let mut  unsecure_net = String::from(config.unsecure_net.clone());
+
+    let secure_net_port = config.secure_net_port;
+    let unsecure_net_port = config.unsecure_net_port;
+    println!("Secure-{}:{}, Unsecure-{}:{}",secure_net, secure_net_port, unsecure_net, unsecure_net_port);
+
+    let (sender, receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+
+    let device = device_picker();
+    println!("Selected device: {}", device.desc.clone().unwrap());
+    //let rsa = RsaCryptoKeys::load().unwrap();
+    //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
+
+    let a = SendUnit::new_udp(secure_net.parse().unwrap(), secure_net_port, unsecure_net.parse().unwrap(), unsecure_net_port);
+    rsa_exchange_public_keys(&a.socket);
+    let receive_thread = thread::spawn(move|| ReceiveUnit::receive(device, pre_process_sender));
+    let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
+    let send_thread = thread::spawn(move || a.send(post_process_receiver));
+
+
+    receive_thread.join().unwrap();
+    process_thread.join().unwrap();
+    send_thread.join().unwrap();
+}
+
+fn rsa_exchange_public_keys(socket: &UdpSocket) -> Result<(), Box<dyn Error>> {
+    let binding = RsaCryptoKeys::get_public_key_pem()?;
     let rsa_pub_key = binding.as_bytes();
-    let socket = UdpSocket::bind("127.0.0.1:7878").await?;
-    println!("Listening on 127.0.0.1:7878");
+   // let ip_address = config_record.secure_net + ":" + &config_record.secure_net_port.to_string();
+    //let socket = UdpSocket::bind(ip_address.clone())?;
+    println!("Listening on {:?}", socket.local_addr().unwrap());
 
     let mut buf = [0u8; 1024];
 
-    Ok(loop {
-        let (amt, src) = socket.recv_from(&mut buf).await?;
+    loop {
+        let (amt, src) = socket.recv_from(&mut buf)?;
         println!("Received data from {}", src);
 
         match std::str::from_utf8(&buf[..amt]) {
@@ -141,17 +108,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("Received: {}", v);
 
                 if v == "REQUEST_PUBLIC_KEY" {
-                    match socket.send_to(rsa_pub_key, &src).await {
+                    match socket.send_to(rsa_pub_key, &src) {
                         Ok(_) => println!("RSA public key sent successfully."),
                         Err(e) => eprintln!("Failed to send RSA public key: {}", e),
                     }
                 } else if v == "KEY_RECEIVED_ACKNOWLEDGMENT" {
                     println!("Acknowledgment received. Key exchange successful.");
-                    break
+                    break;
                 } else if v.starts_with("SENDING_KEY:") {
                     println!("Received key from {}: {}", src, &v["SENDING_KEY:".len()..]);
                     let ack_msg = "KEY_RECEIVED_ACKNOWLEDGMENT".as_bytes();
-                    match socket.send_to(ack_msg, &src).await {
+                    match socket.send_to(ack_msg, &src) {
                         Ok(_) => println!("Acknowledgment sent successfully."),
                         Err(e) => eprintln!("Failed to send acknowledgment: {}", e),
                     }
@@ -159,8 +126,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             },
             Err(e) => println!("Invalid UTF-8 sequence: {}", e),
         }
-    })
+    }
 
+    Ok(())
 }
 
 
@@ -217,3 +185,31 @@ fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16]) {
 
     (key, nonce_bytes)
 }
+
+
+// #[actix_web::main]
+// async fn main() -> std::io::Result<()> {
+//     std::env::set_var("RUST_LOG", "actix_web=debug");
+//     env_logger::init();
+//
+//     HttpServer::new(move || {
+//         let cors = Cors::default()
+//             .allowed_origin_fn(|origin, _req_head| {
+//                 true
+//             })
+//             .allowed_methods(vec!["GET", "POST", "OPTIONS"])
+//             .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
+//             .max_age(3600);
+//         App::new()
+//             .wrap(Logger::default())
+//             .wrap(cors)
+//             .configure(handlers::config)
+//             .configure(handlers::dashboard)
+//             .service(handlers::login)
+//             .service(handlers::rsa)
+//
+//     })
+//         .bind("127.0.0.1:8080")?
+//         .run()
+//         .await
+// }
