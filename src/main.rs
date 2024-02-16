@@ -59,7 +59,7 @@ use crate::must::web_api::models::rsa_record::PublicKeyData;
 fn main(){
     let configuration_name = "Save18";
     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
-
+    //RsaCryptoKeys::generate(RsaKeySize::Bits2048);
 
 
     let mut secure_net = String::from(config.secure_net.clone());
@@ -80,6 +80,7 @@ fn main(){
 
     let a = SendUnit::new_udp(secure_net.parse().unwrap(), secure_net_port, unsecure_net.parse().unwrap(), unsecure_net_port);
     rsa_exchange_public_keys(&a.socket);
+
     let receive_thread = thread::spawn(move|| ReceiveUnit::receive(device, pre_process_sender));
     let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
     let send_thread = thread::spawn(move || a.send(post_process_receiver));
