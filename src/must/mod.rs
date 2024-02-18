@@ -9,3 +9,5 @@ pub mod web_api;
 pub mod send_unit;
 pub mod log_handler;
 pub mod log_assistant;
+mod tests;
+mod mongo_db_handler;

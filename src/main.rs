@@ -18,7 +18,7 @@ use crate::must::ciphers_lib::aes_cipher_trait::AesCipher;
 use crate::must::ciphers_lib::aes_modes::aes_cbc_cipher::AesCbc;
 use crate::must::ciphers_lib::aes_modes::aes_ctr_cipher::AesCtr;
 use crate::must::ciphers_lib::rsa_crypto::{RsaCryptoKeys, RsaKeySize};
-
+use tokio;
 use actix_web::{web, App, HttpServer, middleware::Logger, HttpResponse};
 use actix_cors::Cors;
 use actix_web::http::header;
@@ -27,6 +27,7 @@ use pem::parse;
 use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
 use rsa::RsaPublicKey;
 use std::net::UdpSocket;
+use mongodb::{Client, bson::{doc, DateTime}};
 use crate::must::log_assistant::LogAssistant;
 use crate::must::log_handler::LOG_HANDLER;
 use crate::must::processing_unit::actions_chain::filter::Protocol::UDP;
@@ -56,46 +57,46 @@ use crate::must::web_api::models::rsa_record::PublicKeyData;
 
 
 
-fn main(){
-    let configuration_name = "Save18";
-    let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
-    //RsaCryptoKeys::generate(RsaKeySize::Bits2048);
-
-
-    let mut secure_net = String::from(config.secure_net.clone());
-    let mut  unsecure_net = String::from(config.unsecure_net.clone());
-
-    let secure_net_port = config.secure_net_port;
-    let unsecure_net_port = config.unsecure_net_port;
-    println!("Secure-{}:{}, Unsecure-{}:{}",secure_net, secure_net_port, unsecure_net, unsecure_net_port);
-
-    //let (sender, receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-
-    let device1 = device_picker();
-    println!("Selected device: {}", device1.desc.clone().unwrap());
-    let sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
-    let receive_thread1 = std::thread::spawn(move  || ReceiveUnit::receive(device1, sender_clone));
-
-    let device2 = device_picker();
-    println!("Selected device: {}", device2.desc.clone().unwrap());
-    let receive_thread2 = thread::spawn(move|| ReceiveUnit::receive(device2, pre_process_sender));
-    //let rsa = RsaCryptoKeys::load().unwrap();
-    //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
-
-    let a = SendUnit::new_udp(secure_net.parse().unwrap(), secure_net_port, unsecure_net.parse().unwrap(), unsecure_net_port);
-    //rsa_exchange_public_keys(&a.socket);
-
-
-    let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
-    let send_thread = thread::spawn(move || a.send(post_process_receiver));
-
-
-    receive_thread1.join().unwrap();
-    process_thread.join().unwrap();
-    send_thread.join().unwrap();
-}
+// fn main(){
+//     let configuration_name = "Save18";
+//     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
+//     //RsaCryptoKeys::generate(RsaKeySize::Bits2048);
+//
+//
+//     let mut secure_net = String::from(config.secure_net.clone());
+//     let mut  unsecure_net = String::from(config.unsecure_net.clone());
+//
+//     let secure_net_port = config.secure_net_port;
+//     let unsecure_net_port = config.unsecure_net_port;
+//     println!("Secure-{}:{}, Unsecure-{}:{}",secure_net, secure_net_port, unsecure_net, unsecure_net_port);
+//
+//     //let (sender, receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+//     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+//     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+//
+//     let device1 = device_picker();
+//     println!("Selected device: {}", device1.desc.clone().unwrap());
+//     let sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
+//     let receive_thread1 = std::thread::spawn(move  || ReceiveUnit::receive(device1, sender_clone));
+//
+//     let device2 = device_picker();
+//     println!("Selected device: {}", device2.desc.clone().unwrap());
+//     let receive_thread2 = thread::spawn(move|| ReceiveUnit::receive(device2, pre_process_sender));
+//     //let rsa = RsaCryptoKeys::load().unwrap();
+//     //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
+//
+//     let a = SendUnit::new_udp(secure_net.parse().unwrap(), secure_net_port, unsecure_net.parse().unwrap(), unsecure_net_port);
+//     //rsa_exchange_public_keys(&a.socket);
+//
+//
+//     let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
+//     let send_thread = thread::spawn(move || a.send(post_process_receiver));
+//
+//
+//     receive_thread1.join().unwrap();
+//     process_thread.join().unwrap();
+//     send_thread.join().unwrap();
+// }
 
 fn rsa_exchange_public_keys(socket: &UdpSocket) -> Result<(), Box<dyn Error>> {
     let binding = RsaCryptoKeys::get_public_key_pem()?;
@@ -220,3 +221,19 @@ fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16]) {
 //         .run()
 //         .await
 // }
+#[tokio::main]
+async fn main() {
+    let client = mongodb::Client::with_uri_str("mongodb://localhost:27017/").await.expect("Failed to initialize client.");
+    let db = client.database("MUST");
+    let users_collection = db.collection("Users");
+
+    let new_user = mongodb::bson::doc! {
+        "username": "johndoe",
+        "password": "hashed_password",
+        "email": "johndoe@example.com",
+        "roles": ["user"],
+        "created_at": mongodb::bson::DateTime::now(),
+    };
+
+    users_collection.insert_one(new_user, None).await.expect("Failed to insert document.");
+}
