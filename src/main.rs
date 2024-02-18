@@ -1,5 +1,8 @@
 #![allow(unused)]
+
 mod must;
+
+use std::string::String;
 use crate::must::processing_unit::actions_chain::fragment::{Fragment};
 
 use std::collections::VecDeque;
@@ -22,7 +25,7 @@ use tokio;
 use actix_web::{web, App, HttpServer, middleware::Logger, HttpResponse};
 use actix_cors::Cors;
 use actix_web::http::header;
-use chrono::Local;
+use chrono::{Local, Utc};
 use pem::parse;
 use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
 use rsa::RsaPublicKey;
@@ -30,6 +33,7 @@ use std::net::UdpSocket;
 use mongodb::{Client, bson::{doc, DateTime}};
 use crate::must::log_assistant::LogAssistant;
 use crate::must::log_handler::LOG_HANDLER;
+use crate::must::mongo_db_handler::get_mongo_handler;
 use crate::must::processing_unit::actions_chain::filter::Protocol::UDP;
 use crate::must::processing_unit::processor::ProcessorUnit;
 use crate::must::protocols::protocol::Protocol;
@@ -41,6 +45,7 @@ use crate::must::web_api::handlers;
 use crate::must::web_api::handlers::config_handler::find_config_by_name;
 use crate::must::web_api::models::config_record::ConfigRecord;
 use crate::must::web_api::models::rsa_record::PublicKeyData;
+use crate::must::web_api::models::user_record::UserRecord;
 
 //Dear programmer :)
 //When I wrote this code, only god and
@@ -54,7 +59,6 @@ use crate::must::web_api::models::rsa_record::PublicKeyData;
 //
 //total hours wasted here: 212
 //
-
 
 
 // fn main(){
@@ -131,7 +135,7 @@ fn rsa_exchange_public_keys(socket: &UdpSocket) -> Result<(), Box<dyn Error>> {
                         Err(e) => eprintln!("Failed to send acknowledgment: {}", e),
                     }
                 }
-            },
+            }
             Err(e) => println!("Invalid UTF-8 sequence: {}", e),
         }
     }
@@ -147,7 +151,7 @@ fn show_devices() {
             for device in devices {
                 print!("Device No.{} - ", device_no);
                 println!("Description: {:?}", device.desc);
-                device_no = device_no+1;
+                device_no = device_no + 1;
             }
         }
         Err(e) => {
@@ -155,10 +159,11 @@ fn show_devices() {
         }
     }
 }
+
 fn device_picker() -> Device {
-    let  devices = Device::list().unwrap();
+    let devices = Device::list().unwrap();
     let mut choice: usize = 0;
-    while choice < 1 || choice > devices.len(){
+    while choice < 1 || choice > devices.len() {
         println!("Select a device");
         show_devices();
         print!("Please choose device:");
@@ -169,8 +174,8 @@ fn device_picker() -> Device {
     return devices.get(choice - 1).unwrap().clone();
 }
 
-fn check_assemble_packets(packets: VecDeque<NetworkICD>){
-    let assemble = Fragment{
+fn check_assemble_packets(packets: VecDeque<NetworkICD>) {
+    let assemble = Fragment {
         first_net_max_bandwidth: 0,
         second_net_max_bandwidth: 0,
     };
@@ -221,19 +226,29 @@ fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16]) {
 //         .run()
 //         .await
 // }
+
 #[tokio::main]
 async fn main() {
-    let client = mongodb::Client::with_uri_str("mongodb://localhost:27017/").await.expect("Failed to initialize client.");
-    let db = client.database("MUST");
-    let users_collection = db.collection("Users");
+    // URI and database name should be specified here
+    let uri = "mongodb://localhost:27017/";
+    let db_name = "your_db_name";
 
-    let new_user = mongodb::bson::doc! {
-        "username": "johndoe",
-        "password": "hashed_password",
-        "email": "johndoe@example.com",
-        "roles": ["user"],
-        "created_at": mongodb::bson::DateTime::now(),
+    // Attempt to get the MongoDBHandler
+    let mongo_handler = get_mongo_handler().await.expect("Failed to initialize MongoDB handler.");
+
+    // Create a new user
+    let new_user = UserRecord {
+        id: None, // MongoDB will auto-generate an ObjectId
+        username: "johndoe".to_string(),
+        password: "hashed_password".to_string(), // This should be a hashed password
+        roles: vec!["user".to_string()],
+        created_at: Utc::now().format("%Y-%m-%d").to_string(),
     };
 
-    users_collection.insert_one(new_user, None).await.expect("Failed to insert document.");
+    // Insert the new user into the database
+    mongo_handler.insert_user(new_user).await.expect("Failed to insert new user");
+
+    println!("New user inserted successfully.");
+
+    // The rest of your main function would go here...
 }
