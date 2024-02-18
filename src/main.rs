@@ -69,24 +69,30 @@ fn main(){
     let unsecure_net_port = config.unsecure_net_port;
     println!("Secure-{}:{}, Unsecure-{}:{}",secure_net, secure_net_port, unsecure_net, unsecure_net_port);
 
-    let (sender, receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+    //let (sender, receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
 
-    let device = device_picker();
-    println!("Selected device: {}", device.desc.clone().unwrap());
+    let device1 = device_picker();
+    println!("Selected device: {}", device1.desc.clone().unwrap());
+    let sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
+    let receive_thread1 = std::thread::spawn(move  || ReceiveUnit::receive(device1, sender_clone));
+
+    let device2 = device_picker();
+    println!("Selected device: {}", device2.desc.clone().unwrap());
+    let receive_thread2 = thread::spawn(move|| ReceiveUnit::receive(device2, pre_process_sender));
     //let rsa = RsaCryptoKeys::load().unwrap();
     //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
 
     let a = SendUnit::new_udp(secure_net.parse().unwrap(), secure_net_port, unsecure_net.parse().unwrap(), unsecure_net_port);
-    rsa_exchange_public_keys(&a.socket);
+    //rsa_exchange_public_keys(&a.socket);
 
-    let receive_thread = thread::spawn(move|| ReceiveUnit::receive(device, pre_process_sender));
+
     let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
     let send_thread = thread::spawn(move || a.send(post_process_receiver));
 
 
-    receive_thread.join().unwrap();
+    receive_thread1.join().unwrap();
     process_thread.join().unwrap();
     send_thread.join().unwrap();
 }
@@ -94,7 +100,7 @@ fn main(){
 fn rsa_exchange_public_keys(socket: &UdpSocket) -> Result<(), Box<dyn Error>> {
     let binding = RsaCryptoKeys::get_public_key_pem()?;
     let rsa_pub_key = binding.as_bytes();
-   // let ip_address = config_record.secure_net + ":" + &config_record.secure_net_port.to_string();
+    // let ip_address = config_record.secure_net + ":" + &config_record.secure_net_port.to_string();
     //let socket = UdpSocket::bind(ip_address.clone())?;
     println!("Listening on {:?}", socket.local_addr().unwrap());
 

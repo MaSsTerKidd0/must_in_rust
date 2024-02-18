@@ -43,6 +43,7 @@ lazy_static = "1.4.0"
 
 
 pem = "3.0.3"
+mongodb = "2.8.1"
 
 [profile.dev.package.num-bigint-dig]
 opt-level = 3
