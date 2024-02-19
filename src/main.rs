@@ -245,10 +245,8 @@ async fn main() {
         created_at: Utc::now().format("%Y-%m-%d").to_string(),
     };
 
-    // Insert the new user into the database
+
     mongo_handler.insert_user(new_user).await.expect("Failed to insert new user");
 
     println!("New user inserted successfully.");
-
-    // The rest of your main function would go here...
 }

@@ -47,16 +47,7 @@ mongodb = "2.8.1"
 
 actix-rt = "2.9.0"
 once_cell = "1.19.0"
+futures = "0.3.30"
 
 [profile.dev.package.num-bigint-dig]
 opt-level = 3
-
-
-[[test]]
-name = "user_tests"
-path = "src/must/tests/user_test.rs"
-
-[dev-dependencies]
-futures = "0.3"
-env_logger = "0.11.2"
-tokio-test = "0.4"
