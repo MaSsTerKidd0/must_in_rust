@@ -57,50 +57,63 @@ use crate::must::web_api::models::user_record::UserRecord;
 //please increase this counter as a
 //warning for the next person:
 //
-//total hours wasted here: 212
-//
+//total hours wasted here: 342
 
+const MUST_IP: &str = "127.0.0.1";
+const MUST_PORT: u16 = 42069;
 
-// fn main(){
-//     let configuration_name = "Save18";
-//     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
-//     //RsaCryptoKeys::generate(RsaKeySize::Bits2048);
-//
-//
-//     let mut secure_net = String::from(config.secure_net.clone());
-//     let mut  unsecure_net = String::from(config.unsecure_net.clone());
-//
-//     let secure_net_port = config.secure_net_port;
-//     let unsecure_net_port = config.unsecure_net_port;
-//     println!("Secure-{}:{}, Unsecure-{}:{}",secure_net, secure_net_port, unsecure_net, unsecure_net_port);
-//
-//     //let (sender, receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-//     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-//     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-//
-//     let device1 = device_picker();
-//     println!("Selected device: {}", device1.desc.clone().unwrap());
-//     let sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
-//     let receive_thread1 = std::thread::spawn(move  || ReceiveUnit::receive(device1, sender_clone));
-//
-//     let device2 = device_picker();
-//     println!("Selected device: {}", device2.desc.clone().unwrap());
-//     let receive_thread2 = thread::spawn(move|| ReceiveUnit::receive(device2, pre_process_sender));
-//     //let rsa = RsaCryptoKeys::load().unwrap();
-//     //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
-//
-//     let a = SendUnit::new_udp(secure_net.parse().unwrap(), secure_net_port, unsecure_net.parse().unwrap(), unsecure_net_port);
-//     //rsa_exchange_public_keys(&a.socket);
-//
-//
-//     let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
-//     let send_thread = thread::spawn(move || a.send(post_process_receiver));
-//
-//
-//     receive_thread1.join().unwrap();
-//     process_thread.join().unwrap();
-//     send_thread.join().unwrap();
-// }
+fn main(){
+    let configuration_name = "Save18";
+    let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
+    //RsaCryptoKeys::generate(RsaKeySize::Bits2048);
+
+    let mut secure_net = String::from(config.secure_net.clone());
+    let mut  unsecure_net = String::from(config.unsecure_net.clone());
+
+    let secure_net_port:u16 = config.secure_net_port;
+    let unsecure_net_port:u16 = config.unsecure_net_port;
+    println!("Secure-{}:{}, Unsecure-{}:{}",secure_net, secure_net_port, unsecure_net, unsecure_net_port);
+
+    let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (incoming_data_rx, incoming_data_tx) = std::sync::mpsc::channel::<Vec<u8>>();
+    let device1 = device_picker();
+    println!("Selected device: {}", device1.desc.clone().unwrap());
+    let sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
+    let receive_thread1 = thread::spawn(move  || ReceiveUnit::receive(device1, sender_clone));
+
+    let device2 = device_picker();
+    println!("Selected device: {}", device2.desc.clone().unwrap());
+    let receive_thread2 = thread::spawn(move|| ReceiveUnit::receive(device2, pre_process_sender));
+    //let rsa = RsaCryptoKeys::load().unwrap();
+    //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
+
+    let send_unit = SendUnit::new_udp(MUST_IP.parse().unwrap(), MUST_PORT);
+    let send_unit = Arc::new(Mutex::new(send_unit)); // Wrap send_unit with Arc<Mutex<>> for shared ownership and thread safety
+
+    //rsa_exchange_public_keys(&a.socket);
+    // Clone the Arc to share send_unit between threads
+    let send_unit_for_send_thread = send_unit.clone();
+    let send_thread = thread::spawn(move || {
+        let send_unit = send_unit_for_send_thread.lock().unwrap(); // Lock to access the inner value
+        send_unit.send(post_process_receiver, secure_net.parse().unwrap(), secure_net_port);
+    });
+
+    // Another clone for the must_receive_thread
+    let send_unit_for_receive_thread = send_unit.clone();
+    let must_receive_thread = thread::spawn(move || {
+        let send_unit = send_unit_for_receive_thread.lock().unwrap(); // Lock to access the inner value
+        send_unit.receive(incoming_data_rx);
+    });
+
+    let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
+
+    must_receive_thread.join().unwrap();
+    receive_thread1.join().unwrap();
+    receive_thread2.join().unwrap();
+    process_thread.join().unwrap();
+    send_thread.join().unwrap();
+}
 
 fn rsa_exchange_public_keys(socket: &UdpSocket) -> Result<(), Box<dyn Error>> {
     let binding = RsaCryptoKeys::get_public_key_pem()?;
@@ -227,26 +240,26 @@ fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16]) {
 //         .await
 // }
 
-#[tokio::main]
-async fn main() {
-    // URI and database name should be specified here
-    let uri = "mongodb://localhost:27017/";
-    let db_name = "your_db_name";
-
-    // Attempt to get the MongoDBHandler
-    let mongo_handler = get_mongo_handler().await.expect("Failed to initialize MongoDB handler.");
-
-    // Create a new user
-    let new_user = UserRecord {
-        id: None, // MongoDB will auto-generate an ObjectId
-        username: "johndoe".to_string(),
-        password: "hashed_password".to_string(), // This should be a hashed password
-        roles: vec!["user".to_string()],
-        created_at: Utc::now().format("%Y-%m-%d").to_string(),
-    };
-
-
-    mongo_handler.insert_user(new_user).await.expect("Failed to insert new user");
-
-    println!("New user inserted successfully.");
-}
+// #[tokio::main]
+// async fn main() {
+//     // URI and database name should be specified here
+//     let uri = "mongodb://localhost:27017/";
+//     let db_name = "your_db_name";
+//
+//     // Attempt to get the MongoDBHandler
+//     let mongo_handler = get_mongo_handler().await.expect("Failed to initialize MongoDB handler.");
+//
+//     // Create a new user
+//     let new_user = UserRecord {
+//         id: None, // MongoDB will auto-generate an ObjectId
+//         username: "johndoe".to_string(),
+//         password: "hashed_password".to_string(), // This should be a hashed password
+//         roles: vec!["user".to_string()],
+//         created_at: Utc::now().format("%Y-%m-%d").to_string(),
+//     };
+//
+//
+//     mongo_handler.insert_user(new_user).await.expect("Failed to insert new user");
+//
+//     println!("New user inserted successfully.");
+// }

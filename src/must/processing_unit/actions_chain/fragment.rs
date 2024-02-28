@@ -23,6 +23,7 @@ impl Fragment{
         for chunk in data.chunks(data_len as usize) {
             let packet = NetworkICD {
                 aes_key: new_aes_key.clone(),
+                network: false,
                 packet_number: PACKET_COUNTER.load(Ordering::SeqCst),
                 seq_number: sequence_number,
                 data: Vec::from(chunk),

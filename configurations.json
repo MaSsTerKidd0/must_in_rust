@@ -14,11 +14,11 @@
   {
     "config_name": "Save18",
     "secure_net": "127.0.0.1",
-    "secure_net_port": 8081,
+    "secure_net_port": 65433,
     "secure_net_subnet_mask": "255.255.255.0",
     "secure_net_bandwidth": 1024,
     "unsecure_net": "127.0.0.1",
-    "unsecure_net_port": 8080,
+    "unsecure_net_port": 65431,
     "unsecure_net_subnet_mask": "255.255.255.0",
     "unsecure_net_bandwidth": 2048,
     "aes_type": "AesGcmSiv"

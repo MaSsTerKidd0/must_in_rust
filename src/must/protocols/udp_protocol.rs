@@ -5,20 +5,17 @@ use std::{io, thread};
 use std::time::Duration;
 use crate::must::network_icd::network_icd::NetworkICD;
 
+
 pub struct UdpProtocol {
     pub(crate) socket: UdpSocket,
-    target_socket_addr: SocketAddr,
 }
 
 impl Protocol for UdpProtocol {
-    fn new(local_addr: SocketAddr, target_socket_addr: SocketAddr) -> Self {
-        println!("{:?}:{:?}", local_addr.ip(), local_addr.port());
+    fn new(local_addr: SocketAddr) -> Self {
         let socket = UdpSocket::bind(local_addr)
             .expect("Failed to bind to local address");
-
         UdpProtocol {
             socket,
-            target_socket_addr,
         }
     }
 
@@ -36,11 +33,12 @@ impl Protocol for UdpProtocol {
         }
     }
 
-    fn send(&self, receiver: Receiver<Vec<u8>>) {
+    fn send(&self, receiver: Receiver<Vec<u8>>, target_ip: IpAddr, target_port: u16) {
+        let target_socket_addr = SocketAddr::new(target_ip, target_port);
         loop {
             match receiver.recv() {
                 Ok(data) => {
-                    if let Err(e) = self.socket.send_to(&data, self.target_socket_addr) {
+                    if let Err(e) = self.socket.send_to(&data, target_socket_addr) {
                         eprintln!("Failed to send data: {}", e);
                     }
                 },

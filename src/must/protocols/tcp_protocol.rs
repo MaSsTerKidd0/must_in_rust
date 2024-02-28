@@ -1,21 +1,20 @@
-use std::net::{TcpListener, TcpStream, SocketAddr};
+use std::net::{TcpListener, TcpStream, SocketAddr, IpAddr};
 use std::io::{self, Read, Write};
 use std::sync::mpsc::{Receiver, Sender};
 use crate::must::log_assistant::{LogAssistant, OperationId};
 use crate::must::protocols::protocol::Protocol;
 
+
 pub struct TcpProtocol {
     pub(crate) listener: TcpListener,
-    target_socket_addr: SocketAddr,
 }
 
 impl Protocol for TcpProtocol {
-    fn new(addr: SocketAddr, target_addr: SocketAddr) -> Self {
+    fn new(addr: SocketAddr) -> Self {
         let listener = TcpListener::bind(addr)
             .expect("Failed to bind TCP listener to address");
         TcpProtocol {
             listener,
-            target_socket_addr: target_addr,
         }
     }
 
@@ -37,8 +36,9 @@ impl Protocol for TcpProtocol {
         }
     }
 
-    fn send(&self, receiver: Receiver<Vec<u8>>) {
-        match TcpStream::connect(self.target_socket_addr) {
+    fn send(&self, receiver: Receiver<Vec<u8>>, target_ip: IpAddr, target_port: u16) {
+        let target_socket_addr = SocketAddr::new(target_ip, target_port);
+        match TcpStream::connect(target_socket_addr) {
             Ok(mut stream) => {
                 while let Ok(message) = receiver.recv() {
                     if let Err(e) = stream.write_all(&message) {

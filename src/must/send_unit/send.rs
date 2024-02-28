@@ -3,6 +3,8 @@ use crate::must::protocols::protocol::Protocol;
 use crate::must::protocols::tcp_protocol::TcpProtocol;
 use crate::must::protocols::udp_protocol::UdpProtocol;
 
+
+#[derive(Clone)]
 pub struct SendUnit;
 
 /// Enumeration of protocol types supported by SendUnit.
@@ -25,12 +27,11 @@ impl SendUnit {
     ///
     /// # Panics
     /// if the UDP socket cannot be created.
-    pub(crate) fn new_udp(local_ip_addr: IpAddr, local_port: u16, target_ip_addr: IpAddr, target_port: u16) -> UdpProtocol {
+    pub(crate) fn new_udp(local_ip_addr: IpAddr, local_port: u16) -> UdpProtocol {
         let local_addr = SocketAddr::new(local_ip_addr, local_port);
-        let target_addr = SocketAddr::new(target_ip_addr, target_port);
-
-        UdpProtocol::new(local_addr, target_addr)
+        UdpProtocol::new(local_addr)
     }
+
 
     /// Creates a new TcpProtocol instance.
     ///
@@ -45,11 +46,9 @@ impl SendUnit {
     ///
     /// # Panics
     /// if the TCP listener cannot be created.
-    pub(crate) fn new_tcp(local_ip_addr: IpAddr, local_port: u16, target_ip_addr: IpAddr, target_port: u16) -> TcpProtocol {
+    pub(crate) fn new_tcp(local_ip_addr: IpAddr, local_port: u16) -> TcpProtocol {
         let local_addr = SocketAddr::new(local_ip_addr, local_port);
-        let target_addr = SocketAddr::new(target_ip_addr, target_port);
-
-        TcpProtocol::new(local_addr, target_addr)
+        TcpProtocol::new(local_addr)
     }
 }
 
@@ -70,10 +69,10 @@ impl SendUnit {
     fn new(ctor: SendUnitConstructor) -> ProtocolType {
         match ctor {
             SendUnitConstructor::Udp(local_ip, local_port, target_ip, target_port) => {
-                ProtocolType::Udp(SendUnit::new_udp(local_ip, local_port, target_ip, target_port))
+                ProtocolType::Udp(SendUnit::new_udp(local_ip, local_port))
             },
             SendUnitConstructor::Tcp(local_ip, local_port, target_ip, target_port) => {
-                ProtocolType::Tcp(SendUnit::new_tcp(local_ip, local_port, target_ip, target_port))
+                ProtocolType::Tcp(SendUnit::new_tcp(local_ip, local_port))
             }
         }
     }
