@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex};
 use pcap::Device;
 use crate::must::ciphers_lib::key_generator::{KeyGenerator, KeySize};
 use crate::must::json_handler::JsonHandler;
-use crate::must::network_icd::network_icd::NetworkICD;
+use crate::must::network_icd::network_icd::{NetworkICD, SECURE_NET, UNSECURE_NET};
 use aes_gcm_siv::{Nonce, aead::{Aead}};
 use rand::{rngs::OsRng, RngCore};
 use rsa::traits::PublicKeyParts;
@@ -77,14 +77,14 @@ fn main(){
     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (incoming_data_rx, incoming_data_tx) = std::sync::mpsc::channel::<Vec<u8>>();
-    let device1 = device_picker();
-    println!("Selected device: {}", device1.desc.clone().unwrap());
+    let unsecure_device = device_picker();
+    println!("Selected device: {}", unsecure_device.desc.clone().unwrap());
     let sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
-    let receive_thread1 = thread::spawn(move  || ReceiveUnit::receive(device1, sender_clone));
+    let receive_unsecure = thread::spawn(move  || ReceiveUnit::receive(unsecure_device, sender_clone));
 
-    let device2 = device_picker();
-    println!("Selected device: {}", device2.desc.clone().unwrap());
-    let receive_thread2 = thread::spawn(move|| ReceiveUnit::receive(device2, pre_process_sender));
+    let secure_device = device_picker();
+    println!("Selected device: {}", secure_device.desc.clone().unwrap());
+    let receive_secure = thread::spawn(move|| ReceiveUnit::receive(secure_device, pre_process_sender));
     //let rsa = RsaCryptoKeys::load().unwrap();
     //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
 
@@ -94,9 +94,9 @@ fn main(){
     //rsa_exchange_public_keys(&a.socket);
     // Clone the Arc to share send_unit between threads
     let send_unit_for_send_thread = send_unit.clone();
-    let send_thread = thread::spawn(move || {
+    let secure_send_thread = thread::spawn(move || {
         let send_unit = send_unit_for_send_thread.lock().unwrap(); // Lock to access the inner value
-        send_unit.send(post_process_receiver, secure_net.parse().unwrap(), secure_net_port);
+        send_unit.send(post_process_receiver, SECURE_NET, secure_net.parse().unwrap(), secure_net_port);
     });
 
     // Another clone for the must_receive_thread
@@ -109,10 +109,36 @@ fn main(){
     let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
 
     must_receive_thread.join().unwrap();
-    receive_thread1.join().unwrap();
-    receive_thread2.join().unwrap();
+    receive_unsecure.join().unwrap();
+    receive_secure.join().unwrap();
     process_thread.join().unwrap();
-    send_thread.join().unwrap();
+    secure_send_thread.join().unwrap();
+}
+
+fn check_network_icd() -> Result<(), Box<dyn Error>>{
+    // Create a sample NetworkICD instance
+    let sample_icd = NetworkICD {
+        aes_key: vec![1, 2, 3, 4, 5],
+        network: true,
+        packet_number: 123,
+        seq_number: 456,
+        data: vec![9, 8, 7, 6, 5],
+    };
+
+    // Serialize the sample_icd to bytes
+    let serialized_bytes = sample_icd.to_bytes()?;
+
+    // Deserialize the bytes back into a NetworkICD instance
+    let deserialized_icd = NetworkICD::from_bytes(&serialized_bytes)?;
+
+    // Print the original and deserialized NetworkICD instances to verify they are the same
+    println!("Original ICD: {:?}", sample_icd);
+    println!("Deserialized ICD: {:?}", deserialized_icd);
+
+    // Verify that the original and deserialized instances are the same
+    assert_eq!(sample_icd, deserialized_icd);
+
+    Ok(())
 }
 
 fn rsa_exchange_public_keys(socket: &UdpSocket) -> Result<(), Box<dyn Error>> {

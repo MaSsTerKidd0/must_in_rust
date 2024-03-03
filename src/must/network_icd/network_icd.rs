@@ -7,7 +7,10 @@ use bincode;
 /// packet_number: A 16-bit unsigned integer indicating the packet number. This is used to order packets in a sequence.
 /// seq_number: A 16-bit unsigned integer representing the sequence number, which can be used for identifying the position of this packet in a series of packets.
 /// data: A vector of bytes containing the actual data being transmitted. This field holds the payload of the packet.
-#[derive(Serialize, Deserialize, Debug)]
+pub const SECURE_NET:bool = true;
+pub const UNSECURE_NET:bool = true;
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct NetworkICD {
     pub(crate) aes_key: Vec<u8>,
     pub(crate) network: bool,
