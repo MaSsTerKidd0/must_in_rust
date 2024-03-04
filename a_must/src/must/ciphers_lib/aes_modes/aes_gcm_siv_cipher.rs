@@ -21,7 +21,7 @@ impl AesCipher<[u8; 12]> for AesGcmSiv {
     /// Returns an error if the key is not 32 bytes, or if encryption fails.
     fn encrypt(data: &[u8], key: Vec<u8>, nonce: &[u8; 12]) -> Result<Vec<u8>, String> {
         if key.len() != 32 {
-            return Err("Key must be 32 bytes for Aes256GcmSiv".to_string());
+            return Err("Key g_must be 32 bytes for Aes256GcmSiv".to_string());
         }
 
         let nonce = Nonce::from_slice(nonce); // Converts the 12-byte array into a Nonce
@@ -40,7 +40,7 @@ impl AesCipher<[u8; 12]> for AesGcmSiv {
     /// Returns an error if the key is not 32 bytes, or if decryption fails.
     fn decrypt(data: &[u8], key: Vec<u8>, nonce: &[u8; 12]) -> Result<Vec<u8>, String> {
         if key.len() != 32 {
-            return Err("Key must be 32 bytes for Aes256GcmSiv".to_string());
+            return Err("Key g_must be 32 bytes for Aes256GcmSiv".to_string());
         }
 
         let nonce = Nonce::from_slice(nonce); // Converts the 12-byte array into a Nonce

@@ -18,7 +18,7 @@
     "secure_net_subnet_mask": "255.255.255.0",
     "secure_net_bandwidth": 1024,
     "unsecure_net": "127.0.0.1",
-    "unsecure_net_port": 65431,
+    "unsecure_net_port": 65434,
     "unsecure_net_subnet_mask": "255.255.255.0",
     "unsecure_net_bandwidth": 2048,
     "aes_type": "AesGcmSiv"

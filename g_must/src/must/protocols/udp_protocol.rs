@@ -33,7 +33,7 @@ impl Protocol for UdpProtocol {
         }
     }
 
-    fn send(&self, receiver: Receiver<Vec<u8>>,network_type:bool, target_ip: IpAddr, target_port: u16) {
+    fn send(&self, receiver: Receiver<Vec<u8>>, target_ip: IpAddr, target_port: u16) {
         let target_socket_addr = SocketAddr::new(target_ip, target_port);
         loop {
             match receiver.recv() {

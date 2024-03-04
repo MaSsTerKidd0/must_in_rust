@@ -48,8 +48,11 @@ use crate::must::web_api::models::rsa_record::PublicKeyData;
 use crate::must::web_api::models::user_record::UserRecord;
 
 
-const MUST_IP: &str = "127.0.0.1";
-const MUST_PORT: u16 = 42069;
+const AIR_MUST_IP: &str = "127.0.0.1";
+const AIR_MUST_PORT: u16 = 42069;
+
+const LOCAL_MUST_IP: &str = "127.0.0.1";
+const LOCAL_MUST_PORT: u16 = 42068;
 
 fn main(){
     let configuration_name = "Save18";
@@ -65,7 +68,10 @@ fn main(){
 
     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+    //TODO: change name and make deprocess
     let (incoming_data_rx, incoming_data_tx) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (pre_deprocessing_sender, pre_deprocessing_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+
     let unsecure_device = device_picker();
     println!("Selected device: {}", unsecure_device.desc.clone().unwrap());
     let sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
@@ -77,7 +83,7 @@ fn main(){
     //let rsa = RsaCryptoKeys::load().unwrap();
     //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
 
-    let send_unit = SendUnit::new_udp(MUST_IP.parse().unwrap(), MUST_PORT);
+    let send_unit = SendUnit::new_udp(LOCAL_MUST_IP.parse().unwrap(), LOCAL_MUST_PORT);
     let send_unit = Arc::new(Mutex::new(send_unit)); // Wrap send_unit with Arc<Mutex<>> for shared ownership and thread safety
 
     //rsa_exchange_public_keys(&a.socket);
@@ -85,7 +91,7 @@ fn main(){
     let send_unit_for_send_thread = send_unit.clone();
     let secure_send_thread = thread::spawn(move || {
         let send_unit = send_unit_for_send_thread.lock().unwrap(); // Lock to access the inner value
-        send_unit.send(post_process_receiver, SECURE_NET, secure_net.parse().unwrap(), secure_net_port);
+        send_unit.send(post_process_receiver, secure_net.parse().unwrap(), secure_net_port);
     });
 
     // Another clone for the must_receive_thread
@@ -94,10 +100,15 @@ fn main(){
         let send_unit = send_unit_for_receive_thread.lock().unwrap(); // Lock to access the inner value
         send_unit.receive(incoming_data_rx);
     });
-
+    let send_unit_for_ground_must = send_unit.clone();
+    let ground_must_send_thread = std::thread::spawn(move || {
+        let send_unit = send_unit_for_ground_must.lock().unwrap(); // Lock to access the inner value
+        send_unit.send(pre_deprocessing_receiver, AIR_MUST_IP.parse().unwrap(), AIR_MUST_PORT);
+    });
     let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
 
     must_receive_thread.join().unwrap();
+    ground_must_send_thread.join().unwrap();
     receive_unsecure.join().unwrap();
     receive_secure.join().unwrap();
     process_thread.join().unwrap();

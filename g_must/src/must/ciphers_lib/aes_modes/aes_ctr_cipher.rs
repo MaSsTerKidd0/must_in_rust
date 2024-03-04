@@ -23,7 +23,7 @@ impl AesCipher<[u8; 16]> for AesCtr {
     /// Returns an error if the key is not 32 bytes, or if encryption fails.
     fn encrypt(data: &[u8], key: Vec<u8>, nonce: &[u8; 16]) -> Result<Vec<u8>, String> {
         if key.len() != 32 {
-            return Err("Key must be 256 bits (32 bytes) long".to_string());
+            return Err("Key g_must be 256 bits (32 bytes) long".to_string());
         }
 
         let key_array: [u8; 32] = match key.try_into() {
@@ -48,7 +48,7 @@ impl AesCipher<[u8; 16]> for AesCtr {
     /// Returns an error if the key is not 32 bytes, or if decryption fails.
     fn decrypt(data: &[u8], key: Vec<u8>, nonce: &[u8; 16]) -> Result<Vec<u8>, String> {
         if key.len() != 32 {
-            return Err("Key must be 256 bits (32 bytes) long".to_string());
+            return Err("Key g_must be 256 bits (32 bytes) long".to_string());
         }
         Self::encrypt(data, key, nonce)
     }
