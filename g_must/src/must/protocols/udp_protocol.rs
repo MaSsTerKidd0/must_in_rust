@@ -2,7 +2,9 @@ use std::net::{IpAddr, SocketAddr, UdpSocket};
 use crate::must::protocols::protocol::Protocol;
 use std::sync::mpsc::{Receiver, Sender};
 use std::{io, thread};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use chrono::Local;
 use crate::must::network_icd::network_icd::NetworkICD;
 
 
@@ -19,8 +21,10 @@ impl Protocol for UdpProtocol {
         }
     }
 
-    fn receive(&self, sender: Sender<Vec<u8>>){
+
+    fn receive(&self, sender: Sender<Vec<u8>>) {
         let mut buffer = [0; 1024];
+        println!("IN RECEIVE");
 
         match self.socket.recv_from(&mut buffer) {
             Ok((number_of_bytes, _src_addr)) => {
@@ -35,9 +39,10 @@ impl Protocol for UdpProtocol {
 
     fn send(&self, receiver: Receiver<Vec<u8>>, target_ip: IpAddr, target_port: u16) {
         let target_socket_addr = SocketAddr::new(target_ip, target_port);
+        println!("In Send");
         loop {
             match receiver.recv() {
-                Ok(data) => {
+                Ok(data) => {;
                     if let Err(e) = self.socket.send_to(&data, target_socket_addr) {
                         eprintln!("Failed to send data: {}", e);
                     }

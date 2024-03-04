@@ -25,6 +25,7 @@ impl Protocol for UdpProtocol {
         match self.socket.recv_from(&mut buffer) {
             Ok((number_of_bytes, _src_addr)) => {
                 let data = buffer[..number_of_bytes].to_vec();
+                print!("{:?}",data);
                 if let Err(e) = sender.send(data) {
                     eprintln!("Failed to send data: {}", e);
                 }
