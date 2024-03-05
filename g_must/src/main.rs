@@ -31,6 +31,7 @@ use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
 use rsa::RsaPublicKey;
 use std::net::UdpSocket;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 use mongodb::{Client, bson::{doc, DateTime}};
 use crate::must::log_assistant::LogAssistant;
 use crate::must::log_handler::LOG_HANDLER;
@@ -55,8 +56,7 @@ const AIR_MUST_PORT: u16 = 42069;
 const LOCAL_MUST_IP: &str = "127.0.0.1";
 const LOCAL_MUST_PORT: u16 = 42068;
 
-#[tokio::main]
-async fn main(){
+fn main(){
     let configuration_name = "Save18";
     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 
@@ -115,6 +115,18 @@ async fn main(){
     //     send_unit.send(send_receiver, secure_net.parse().unwrap(), secure_net_port);
     // });
 
+    let run_clone = running.clone();
+    ctrlc::set_handler(move||{
+        run_clone.store(false, Ordering::SeqCst)
+    }).expect("Error setting SIGINT handler");
+
+    let run_clone = running.clone();
+    signal_hook::flag::register(signal_hook::consts::SIGTERM, run_clone)
+        .expect("Error setting SIGTERM handler");
+
+    while running.load(Ordering::SeqCst){
+        thread::sleep(Duration::from_secs(1));
+    }
     // This triggers ReceiveUnit::receive to stop.
     // The Sender that ReceiveUnit::receive thread owns, goes out of scope.
     // When a Sender goes out of scope, its accompanying receiver immediately
