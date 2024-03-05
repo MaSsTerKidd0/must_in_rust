@@ -30,6 +30,7 @@ use pem::parse;
 use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
 use rsa::RsaPublicKey;
 use std::net::UdpSocket;
+use std::sync::atomic::{AtomicBool, Ordering};
 use mongodb::{Client, bson::{doc, DateTime}};
 use crate::must::log_assistant::LogAssistant;
 use crate::must::log_handler::LOG_HANDLER;
@@ -61,6 +62,9 @@ async fn main(){
 
     //RsaCryptoKeys::generate(RsaKeySize::Bits2048);
 
+    let running = Arc::new(AtomicBool::new(true));
+
+
     let mut secure_net = String::from(config.secure_net.clone());
     let mut  unsecure_net = String::from(config.unsecure_net.clone());
 
@@ -77,22 +81,29 @@ async fn main(){
     let unsecure_device = device_picker();
     println!("Selected device: {}", unsecure_device.desc.clone().unwrap());
     let pre_process_sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
-    let receive_unsecure = thread::spawn(move  || ReceiveUnit::receive(unsecure_device, pre_process_sender_clone));
+    let run_clone = running.clone();
+    let receive_unsecure = thread::spawn(move  || ReceiveUnit::receive(unsecure_device, pre_process_sender_clone, run_clone));
 
     let secure_device = device_picker();
     println!("Selected device: {}", secure_device.desc.clone().unwrap());
-    let receive_secure = thread::spawn(move|| ReceiveUnit::receive(secure_device, pre_process_sender));
+    let run_clone = running.clone();
+    let receive_secure = thread::spawn(move|| ReceiveUnit::receive(secure_device, pre_process_sender, run_clone));
     //let rsa = RsaCryptoKeys::load().unwrap();
     //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
-    let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
 
+    let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
+    {
     let send_unit = SendUnit::new_udp(LOCAL_MUST_IP.parse().unwrap(), LOCAL_MUST_PORT);
     let send_unit = Arc::new(send_unit);
     let send_unit_clone = Arc::clone(&send_unit);
-    let must_send_thread = thread::spawn(move || {send_unit_clone.send(post_process_receiver, AIR_MUST_IP.parse().unwrap(), AIR_MUST_PORT)});
-    let send_unit_clone = Arc::clone(&send_unit);
-    let must_recv_thread = thread::spawn(move || {send_unit_clone.receive(incoming_data_sender)});
+    let must_send_thread = thread::spawn(move ||
+        send_unit_clone.send(post_process_receiver, AIR_MUST_IP.parse().unwrap(), AIR_MUST_PORT)
+    );
 
+    let send_unit_clone = Arc::clone(&send_unit);
+    let must_recv_thread = thread::spawn(move ||
+        send_unit_clone.receive(incoming_data_sender));
+    }
 
     // let barrier = Arc::new(Barrier::new(2));
     // rsa_exchange_public_keys(&a.socket);
@@ -104,9 +115,16 @@ async fn main(){
     //     send_unit.send(send_receiver, secure_net.parse().unwrap(), secure_net_port);
     // });
 
+    // This triggers ReceiveUnit::receive to stop.
+    // The Sender that ReceiveUnit::receive thread owns, goes out of scope.
+    // When a Sender goes out of scope, its accompanying receiver immediately
+    // returns error.
+    // When that happens, it causes a chain reaction that cause all the threads
+    // to error out and return gracefully.
+    running.store(false, Ordering::SeqCst);
 
-    //must_send_thread.join().unwrap();
-    //must_recv_thread.join().unwrap();
+    // must_send_thread.join().unwrap();
+    // must_recv_thread.join().unwrap();
     receive_unsecure.join().unwrap();
     receive_secure.join().unwrap();
     // send_secure.join().unwrap();

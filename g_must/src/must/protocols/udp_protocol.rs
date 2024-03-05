@@ -25,25 +25,29 @@ impl Protocol for UdpProtocol {
     fn receive(&self, sender: Sender<Vec<u8>>) {
         let mut buffer = [0; 1024];
         println!("IN RECEIVE");
-
-        match self.socket.recv_from(&mut buffer) {
-            Ok((number_of_bytes, _src_addr)) => {
-                let data = buffer[..number_of_bytes].to_vec();
-                if let Err(e) = sender.send(data) {
-                    eprintln!("Failed to send data: {}", e);
-                }
-            },
-            Err(e) => eprintln!("Failed to receive data: {}", e),
+        let socket =  self.socket.try_clone().unwrap();
+        loop {
+            match socket.recv_from(&mut buffer) {
+                Ok((number_of_bytes, _src_addr)) => {
+                    let data = buffer[..number_of_bytes].to_vec();
+                    if let Err(e) = sender.send(data) {
+                        eprintln!("Failed to send data over channel: {}", e);
+                    }
+                },
+                Err(e) => eprintln!("Failed to receive data: {}", e),
+            }
         }
     }
 
     fn send(&self, receiver: Receiver<Vec<u8>>, target_ip: IpAddr, target_port: u16) {
         let target_socket_addr = SocketAddr::new(target_ip, target_port);
         println!("In Send");
+        let socket =  self.socket.try_clone().unwrap();
         loop {
             match receiver.recv() {
                 Ok(data) => {;
-                    if let Err(e) = self.socket.send_to(&data, target_socket_addr) {
+
+                    if let Err(e) = socket.send_to(&data, target_socket_addr) {
                         eprintln!("Failed to send data: {}", e);
                     }
                 },
@@ -53,5 +57,11 @@ impl Protocol for UdpProtocol {
                 }
             }
         }
+    }
+}
+impl UdpProtocol{
+   fn get_socket(&self) -> UdpSocket
+    {
+        self.socket.try_clone().unwrap()
     }
 }
