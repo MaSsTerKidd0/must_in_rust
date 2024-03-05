@@ -76,7 +76,8 @@ fn main(){
     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (incoming_data_sender, incoming_data_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (pre_dismantle_sender, pre_dismantle_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (secure_sender, send_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (secure_sender, secure_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (unsecure_sender, unsecure_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
 
     let unsecure_device = device_picker();
     println!("Selected device: {}", unsecure_device.desc.clone().unwrap());
@@ -92,28 +93,16 @@ fn main(){
     //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
 
     let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
-    {
     let send_unit = SendUnit::new_udp(LOCAL_MUST_IP.parse().unwrap(), LOCAL_MUST_PORT);
-    let send_unit = Arc::new(send_unit);
-    let send_unit_clone = Arc::clone(&send_unit);
-    let must_send_thread = thread::spawn(move ||
-        send_unit_clone.send(post_process_receiver, AIR_MUST_IP.parse().unwrap(), AIR_MUST_PORT)
-    );
 
-    let send_unit_clone = Arc::clone(&send_unit);
-    let must_recv_thread = thread::spawn(move ||
-        send_unit_clone.receive(incoming_data_sender));
-    }
+    let send_unit_clone = send_unit.clone();
+    let secure_send = thread::spawn(move || send_unit_clone.send(secure_receiver,secure_net.parse().unwrap(),secure_net_port));
+    let send_unit_clone = send_unit.clone();
+    let unsecure_send = thread::spawn(move || send_unit.send(unsecure_receiver,unsecure_net.parse().unwrap(),unsecure_net_port));
 
-    // let barrier = Arc::new(Barrier::new(2));
     // rsa_exchange_public_keys(&a.socket);
     // Clone the Arc to share send_unit between threads
 
-    // let send_unit_for_send_thread = send_unit.clone();
-    // let send_secure = thread::spawn(move || {
-    //     let send_unit = send_unit_for_send_thread.lock().unwrap(); // Lock to access the inner value
-    //     send_unit.send(send_receiver, secure_net.parse().unwrap(), secure_net_port);
-    // });
 
     let run_clone = running.clone();
     ctrlc::set_handler(move||{
@@ -135,12 +124,11 @@ fn main(){
     // to error out and return gracefully.
     running.store(false, Ordering::SeqCst);
 
-    // must_send_thread.join().unwrap();
-    // must_recv_thread.join().unwrap();
+
     receive_unsecure.join().unwrap();
     receive_secure.join().unwrap();
-    // send_secure.join().unwrap();
-
+    secure_send.join().unwrap();
+    unsecure_send.join().unwrap();
     process_thread.join().unwrap();
 
 }
@@ -258,7 +246,8 @@ fn check_assemble_packets(packets: VecDeque<NetworkICD>) {
 }
 
 //TODO: use this to generate random nonce put in the aes
-fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16]) {
+fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16])
+{
     let key = KeyGenerator::generate_key(KeySize::Bits256);
     println!("key: {:?}", hex::encode(&key));
 
@@ -266,7 +255,7 @@ fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16]) {
     OsRng.fill_bytes(&mut nonce_bytes);
     println!("Nonce: {:?}", hex::encode(&nonce_bytes));
 
-    (key, nonce_bytes)
+    return (key, nonce_bytes);
 }
 
 

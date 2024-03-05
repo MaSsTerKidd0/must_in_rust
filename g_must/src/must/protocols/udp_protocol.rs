@@ -59,9 +59,10 @@ impl Protocol for UdpProtocol {
         }
     }
 }
-impl UdpProtocol{
-   fn get_socket(&self) -> UdpSocket
-    {
-        self.socket.try_clone().unwrap()
+impl Clone for UdpProtocol {
+    fn clone(&self) -> Self {
+        UdpProtocol {
+            socket: self.socket.try_clone().expect("Failed to clone UdpSocket"),
+        }
     }
 }
