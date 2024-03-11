@@ -49,5 +49,8 @@ actix-rt = "2.9.0"
 once_cell = "1.19.0"
 futures = "0.3.30"
 
+signal-hook = "0.3.17"
+ctrlc = "3.4.2"
+
 [profile.dev.package.num-bigint-dig]
 opt-level = 3

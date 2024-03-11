@@ -1,4 +1,4 @@
-pub mod network_icd;
+pub mod network;
 pub mod protocols;
 pub mod processing_unit;
 pub mod compressions;

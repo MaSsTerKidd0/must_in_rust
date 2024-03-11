@@ -9,7 +9,7 @@ use std::collections::VecDeque;
 use std::{fs, io, thread};
 use std::error::Error;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Barrier, Mutex};
 use pcap::Device;
 use crate::must::ciphers_lib::key_generator::{KeyGenerator, KeySize};
 use crate::must::json_handler::JsonHandler;
@@ -30,6 +30,8 @@ use pem::parse;
 use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
 use rsa::RsaPublicKey;
 use std::net::UdpSocket;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 use mongodb::{Client, bson::{doc, DateTime}};
 use crate::must::log_assistant::LogAssistant;
 use crate::must::log_handler::LOG_HANDLER;
@@ -47,90 +49,81 @@ use crate::must::web_api::models::config_record::ConfigRecord;
 use crate::must::web_api::models::rsa_record::PublicKeyData;
 use crate::must::web_api::models::user_record::UserRecord;
 
-//Dear programmer :)
-//When I wrote this code, only god and
-//I knew how it worked
-//Now, only god knows it!
-//
-//Therefore, if you are trying to optimize
-//this routine, and it fails (most surely),
-//please increase this counter as a
-//warning for the next person:
-//
-//total hours wasted here: 342
 
-const GROUND_MUST_IP: &str = "127.0.0.1";
-const GROUND_MUST_PORT: u16 = 42068;
 
-const LOCAL_MUST_IP: &str = "127.0.0.1";
+const LOCAL_MUST_IP: &str = "192.168.223.1";
 const LOCAL_MUST_PORT: u16 = 42069;
 
-fn main() {
-    // Load the configuration by name
+fn main(){
     let configuration_name = "Save18";
     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 
-    // Clone network configurations
+    //RsaCryptoKeys::generate(RsaKeySize::Bits2048);
+
+    let running = Arc::new(AtomicBool::new(true));
+
+
     let mut secure_net = String::from(config.secure_net.clone());
-    let mut unsecure_net = String::from(config.unsecure_net.clone());
+    let mut  unsecure_net = String::from(config.unsecure_net.clone());
 
-    // Network ports
-    let secure_net_port: u16 = config.secure_net_port;
-    let unsecure_net_port: u16 = config.unsecure_net_port;
+    let secure_net_port:u16 = config.secure_net_port;
+    let unsecure_net_port:u16 = config.unsecure_net_port;
+    println!("Secure-{}:{}, Unsecure-{}:{}",secure_net, secure_net_port, unsecure_net, unsecure_net_port);
 
-    // Print network configurations
-    println!("Secure-{}:{}, Unsecure-{}:{}", secure_net, secure_net_port, unsecure_net, unsecure_net_port);
-
-    // Setup communication channels
     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (incoming_data_rx, incoming_data_tx) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (pre_dismantle_sender, pre_dismantle_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (secure_sender, secure_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
 
-    // Pick devices
     let unsecure_device = device_picker();
-    println!("Selected device: {}", unsecure_device.desc.clone().unwrap());
+    println!("Selected Unsecure device: {}", unsecure_device.desc.clone().unwrap());
+    let pre_process_sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
+    let run_clone = running.clone();
+    let receive_unsecure = thread::spawn(move  || ReceiveUnit::receive(unsecure_device, pre_process_sender_clone, run_clone));
 
-    // Setup receiving unit for unsecure network
-    let sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
-    let receive_unsecure = thread::spawn(move || ReceiveUnit::receive(unsecure_device, sender_clone));
-
-    // Setup receiving unit for secure network
     let secure_device = device_picker();
-    println!("Selected device: {}", secure_device.desc.clone().unwrap());
-    let receive_secure = thread::spawn(move || ReceiveUnit::receive(secure_device, pre_process_sender));
+    println!("Selected Secure device: {}", secure_device.desc.clone().unwrap());
+    let run_clone = running.clone();
+    let receive_secure = thread::spawn(move|| ReceiveUnit::receive(secure_device, pre_process_sender, run_clone));
+    //let rsa = RsaCryptoKeys::load().unwrap();
+    //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
 
-    // Setup sending unit
+    let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
     let send_unit = SendUnit::new_udp(LOCAL_MUST_IP.parse().unwrap(), LOCAL_MUST_PORT);
-    let send_unit = Arc::new(Mutex::new(send_unit)); // Wrap send_unit with Arc<Mutex<>> for shared ownership and thread safety
 
-    // Setup secure send thread
-    let send_unit_for_send_thread = send_unit.clone(); // Clone the Arc to share send_unit between threads
-    let secure_send_thread = thread::spawn(move || {
-        let send_unit = send_unit_for_send_thread.lock().unwrap(); // Lock to access the inner value
-        send_unit.send(post_process_receiver, SECURE_NET, secure_net.parse().unwrap(), secure_net_port);
-    });
+    let send_unit_clone = send_unit.clone();
+    let secure_send = thread::spawn(move || send_unit_clone.send(secure_receiver,secure_net.parse().unwrap(), secure_net_port));
+    let send_unit_clone = send_unit.clone();
+    let unsecure_send = thread::spawn(move || send_unit.send(post_process_receiver,unsecure_net.parse().unwrap(), unsecure_net_port));
 
-    // Setup g_must receive thread
-    let send_unit_for_receive_thread = send_unit.clone(); // Another clone for the must_receive_thread
-    let must_receive_thread = thread::spawn(move || {
-        let send_unit = send_unit_for_receive_thread.lock().unwrap(); // Lock to access the inner value
-        send_unit.receive(incoming_data_rx);
-    });
+    // rsa_exchange_public_keys(&a.socket);
+    // Clone the Arc to share send_unit between threads
 
-    // Setup processing thread
-    let process_thread = thread::spawn(move || ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
+    let run_clone = running.clone();
+    ctrlc::set_handler(move||{
+        run_clone.store(false, Ordering::SeqCst)
+    }).expect("Error setting SIGINT handler");
 
-    //ground must receive and send
-    must_receive_thread.join().unwrap();
+    let run_clone = running.clone();
+    signal_hook::flag::register(signal_hook::consts::SIGTERM, run_clone)
+        .expect("Error setting SIGTERM handler");
 
-    //handle unsecure network
+    while running.load(Ordering::SeqCst){
+        thread::sleep(Duration::from_secs(1));
+    }
+
+    // This triggers ReceiveUnit::receive to stop.
+    // The Sender that ReceiveUnit::receive thread owns, goes out of scope.
+    // When a Sender goes out of scope, its accompanying receiver immediately
+    // returns error.
+    // When that happens, it causes a chain reaction that cause all the threads
+    // to error out and return gracefully.
+    running.store(false, Ordering::SeqCst);
+
     receive_unsecure.join().unwrap();
-
-    //handle secure network
     receive_secure.join().unwrap();
-    secure_send_thread.join().unwrap();
-
-    //processing unit
+    secure_send.join().unwrap();
+    unsecure_send.join().unwrap();
     process_thread.join().unwrap();
 
 }
@@ -248,7 +241,8 @@ fn check_assemble_packets(packets: VecDeque<NetworkICD>) {
 }
 
 //TODO: use this to generate random nonce put in the aes
-fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16]) {
+fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16])
+{
     let key = KeyGenerator::generate_key(KeySize::Bits256);
     println!("key: {:?}", hex::encode(&key));
 
@@ -256,7 +250,7 @@ fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16]) {
     OsRng.fill_bytes(&mut nonce_bytes);
     println!("Nonce: {:?}", hex::encode(&nonce_bytes));
 
-    (key, nonce_bytes)
+    return (key, nonce_bytes);
 }
 
 

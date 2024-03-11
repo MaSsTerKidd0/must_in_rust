@@ -9,6 +9,7 @@ use crate::must::ciphers_lib::key_generator::{KeyGenerator, KeySize};
 use crate::must::ciphers_lib::rsa_crypto::RsaCryptoKeys;
 use crate::must::log_assistant::{LogAssistant, OperationId};
 use crate::must::log_handler::LOG_HANDLER;
+use crate::must::network::remote_networks::NetworkConfig;
 use crate::must::processing_unit::actions_chain::encrypt;
 use crate::must::processing_unit::actions_chain::encrypt::Encryptor;
 use crate::must::processing_unit::actions_chain::filter::{Filter, Protocol};
@@ -19,7 +20,7 @@ use crate::must::web_api::models::config_record::ConfigRecord;
 pub struct ProcessorUnit;
 
 impl ProcessorUnit {
-    pub(crate) fn process(packet_data_rx: Receiver<Vec<u8>>, processed_data_tx: Sender<Vec<u8>>, config_record: ConfigRecord) {
+    pub(crate) fn process(packet_data_rx: Receiver<Vec<u8>>, processed_data_tx: Sender<Vec<u8>>, config_record: ConfigRecord, remote_networks: &NetworkConfig) {
 
         let aes_type = AesType::from_str(&config_record.aes_type).unwrap();
         let rsa = RsaCryptoKeys::load().unwrap();
@@ -34,7 +35,7 @@ impl ProcessorUnit {
         let mut start_time = Instant::now();
 
         while let Ok(packet_vec) = packet_data_rx.recv() {
-            if Filter::is_protocol_packet_for_ip(packet_vec.clone().as_slice(), &config_record.unsecure_net, UDP) {
+            if Filter::is_protocol_packet_for_ip(packet_vec.clone().as_slice(), config_record.clone(), remote_networks.clone(), UDP) {
                 let aes_key = KeyGenerator::generate_key(KeySize::Bits256);
                 if let Some(encrypted_payload) = ProcessorUnit::encrypt_packet_payload(&packet_vec, aes_type.clone(), aes_key.clone()) {
                     let packets_to_send = ProcessorUnit::fragment_and_prepare_packets(encrypted_payload, &fragment_unit, aes_key, &rsa);
