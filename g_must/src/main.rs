@@ -31,6 +31,7 @@ use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
 use rsa::RsaPublicKey;
 use std::net::UdpSocket;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration;
 use mongodb::{Client, bson::{doc, DateTime}};
 use crate::must::log_assistant::LogAssistant;
@@ -53,8 +54,8 @@ use crate::must::web_api::models::user_record::UserRecord;
 
 
 
-const LOCAL_MUST_IP: &str = "192.168.100.8";
-const LOCAL_MUST_PORT: u16 = 42068;
+const LOCAL_MUST_IP: &str = "0.0.0.0";
+const LOCAL_MUST_PORT: u16 = 0;
 
 fn main(){
     let configuration_name = "Save18";
@@ -76,7 +77,7 @@ fn main(){
     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (secure_sender, secure_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (unsecure_sender, unsecure_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+
 
     let unsecure_device = device_picker();
     println!("Selected unsecure device: {}", unsecure_device.desc.clone().unwrap());
@@ -88,8 +89,7 @@ fn main(){
     println!("Selected secure device: {}", secure_device.desc.clone().unwrap());
     let run_clone = running.clone();
     let receive_secure = thread::spawn(move|| ReceiveUnit::receive(secure_device, pre_process_sender, run_clone));
-    //let rsa = RsaCryptoKeys::load().unwrap();
-    //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
+
 
     let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone(), &networks));
     let send_unit = SendUnit::new_udp(LOCAL_MUST_IP.parse().unwrap(), LOCAL_MUST_PORT);
@@ -132,6 +132,19 @@ fn main(){
 }
 
 
+
+
+
+// fn main() -> std::io::Result<()> {
+//     let socket = UdpSocket::bind("0.0.0.0:0")?; // Bind to any available port on all interfaces
+//     let target = "192.168.100.9:8081";
+//
+//     let message = b"Hello, UDP from 192.168.100.8!";
+//     socket.send_to(message, target)?;
+//
+//     println!("Sent message to {}", target);
+//     Ok(())
+// }
 fn check_network_icd() -> Result<(), Box<dyn Error>>{
     // Create a sample NetworkICD instance
     let sample_icd = NetworkICD {
@@ -165,47 +178,6 @@ fn load_remote_network() -> Result<NetworkConfig, Box<dyn std::error::Error>> {
     Ok(network_config)
 }
 
-
-fn rsa_exchange_public_keys(socket: &UdpSocket) -> Result<(), Box<dyn Error>> {
-    let binding = RsaCryptoKeys::get_public_key_pem()?;
-    let rsa_pub_key = binding.as_bytes();
-    // let ip_address = config_record.secure_net + ":" + &config_record.secure_net_port.to_string();
-    //let socket = UdpSocket::bind(ip_address.clone())?;
-    println!("Listening on {:?}", socket.local_addr().unwrap());
-
-    let mut buf = [0u8; 1024];
-
-    loop {
-        let (amt, src) = socket.recv_from(&mut buf)?;
-        println!("Received data from {}", src);
-
-        match std::str::from_utf8(&buf[..amt]) {
-            Ok(v) => {
-                println!("Received: {}", v);
-
-                if v == "REQUEST_PUBLIC_KEY" {
-                    match socket.send_to(rsa_pub_key, &src) {
-                        Ok(_) => println!("RSA public key sent successfully."),
-                        Err(e) => eprintln!("Failed to send RSA public key: {}", e),
-                    }
-                } else if v == "KEY_RECEIVED_ACKNOWLEDGMENT" {
-                    println!("Acknowledgment received. Key exchange successful.");
-                    break;
-                } else if v.starts_with("SENDING_KEY:") {
-                    println!("Received key from {}: {}", src, &v["SENDING_KEY:".len()..]);
-                    let ack_msg = "KEY_RECEIVED_ACKNOWLEDGMENT".as_bytes();
-                    match socket.send_to(ack_msg, &src) {
-                        Ok(_) => println!("Acknowledgment sent successfully."),
-                        Err(e) => eprintln!("Failed to send acknowledgment: {}", e),
-                    }
-                }
-            }
-            Err(e) => println!("Invalid UTF-8 sequence: {}", e),
-        }
-    }
-
-    Ok(())
-}
 
 
 fn show_devices() {

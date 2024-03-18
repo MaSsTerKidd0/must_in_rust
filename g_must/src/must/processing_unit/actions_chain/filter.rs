@@ -9,28 +9,41 @@ pub enum Protocol {
 
 pub struct Filter;
 
+#[derive(Debug, PartialEq)]
+pub enum NetworkState {
+    UnsecureNetwork,
+    SecureNetwork,
+    UnsecureNetworkRemote,
+    SecureNetworkRemote,
+}
+
+
 impl Filter {
-    pub fn is_protocol_packet_for_ip(packet_data: &[u8], config_record: ConfigRecord, remote_networks: NetworkConfig, protocol: Protocol) -> bool {
-        // Ethernet frame is 14 bytes. Total length for Ethernet + IP header without options is 34 bytes.
+    pub fn identify_network_state_for_packet(packet_data: &[u8], config_record: &ConfigRecord, remote_networks: &NetworkConfig, protocol: Protocol) -> Option<NetworkState> {
         if packet_data.len() < 34 {
-            return false;
+            return None;
         }
 
-        // Check the protocol field in the IP header
-        // Ethernet frame is 14 bytes, IP header starts at 15th byte, protocol is at 10th byte of IP header
-        if packet_data[23] != protocol as u8 && packet_data[23] != 50 as u8 {
-            return false;
+        if packet_data[23] != protocol as u8 && packet_data[23] != 50 {
+            return None;
         }
 
-        // Extract destination IP address
-        // Destination IP starts at 16th byte of IP header, after 14 bytes of Ethernet frame
-        let dst_ip = format!("{}.{}.{}.{}",
-                             packet_data[30],
-                             packet_data[31],
-                             packet_data[32],
-                             packet_data[33]);
-        println!("dst_addr = {}, secure_net = {}, unsecure_net = {}", dst_ip,remote_networks.secure_network.ip,remote_networks.unsecure_network.ip);
+        let dst_ip = format!("{}.{}.{}.{}", packet_data[30], packet_data[31], packet_data[32], packet_data[33]);
 
-        dst_ip == remote_networks.secure_network.ip || dst_ip == remote_networks.unsecure_network.ip
+        Filter::identify_network_state(&dst_ip, config_record, remote_networks)
+    }
+
+    fn identify_network_state(dst_ip: &str, config_record: &ConfigRecord, remote_networks: &NetworkConfig) -> Option<NetworkState> {
+        if dst_ip == config_record.secure_net {
+            Some(NetworkState::SecureNetwork)
+        } else if dst_ip == config_record.unsecure_net {
+            Some(NetworkState::UnsecureNetwork)
+        } else if dst_ip == remote_networks.secure_network.ip {
+            Some(NetworkState::SecureNetworkRemote)
+        } else if dst_ip == remote_networks.unsecure_network.ip {
+            Some(NetworkState::UnsecureNetworkRemote)
+        } else {
+            None
+        }
     }
 }

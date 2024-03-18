@@ -5,7 +5,7 @@ use std::{io, thread};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use chrono::Local;
-use crate::must::network_icd::network_icd::NetworkICD;
+use crate::must::network::network_icd::NetworkICD;
 
 
 pub struct UdpProtocol {
@@ -24,7 +24,6 @@ impl Protocol for UdpProtocol {
 
     fn receive(&self, sender: Sender<Vec<u8>>) {
         let mut buffer = [0; 1024];
-        println!("IN RECEIVE");
         let socket =  self.socket.try_clone().unwrap();
         loop {
             match socket.recv_from(&mut buffer) {
@@ -41,14 +40,17 @@ impl Protocol for UdpProtocol {
 
     fn send(&self, receiver: Receiver<Vec<u8>>, target_ip: IpAddr, target_port: u16) {
         let target_socket_addr = SocketAddr::new(target_ip, target_port);
+
         println!("In Send");
-        let socket =  self.socket.try_clone().unwrap();
+        let socket = self.socket.try_clone().unwrap();
         loop {
             match receiver.recv() {
-                Ok(data) => {;
 
-                    if let Err(e) = socket.send_to(&data, target_socket_addr) {
-                        eprintln!("Failed to send data: {}", e);
+                Ok(data) => {
+                    println!("Data: {:?}", &data);
+                    match socket.send_to(&data, target_socket_addr) {
+                        Ok(_) => println!("Successfully sent data to {}:{}", target_ip, target_port),
+                        Err(e) => eprintln!("Failed to send data to {}: {}", target_socket_addr, e),
                     }
                 },
                 Err(e) => {
@@ -58,6 +60,9 @@ impl Protocol for UdpProtocol {
             }
         }
     }
+
+
+
 }
 impl Clone for UdpProtocol {
     fn clone(&self) -> Self {

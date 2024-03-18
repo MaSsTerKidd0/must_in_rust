@@ -2,7 +2,7 @@ use std::{io, thread};
 use std::net::{IpAddr, SocketAddr};
 use std::io::Result;
 use std::sync::mpsc::{Receiver, Sender};
-use crate::must::network_icd::network_icd::NetworkICD;
+use crate::must::network::network_icd::NetworkICD;
 use crate::must::protocols::udp_protocol::UdpProtocol;
 
 pub trait Protocol {

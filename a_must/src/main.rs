@@ -13,7 +13,7 @@ use std::sync::{Arc, Barrier, Mutex};
 use pcap::Device;
 use crate::must::ciphers_lib::key_generator::{KeyGenerator, KeySize};
 use crate::must::json_handler::JsonHandler;
-use crate::must::network_icd::network_icd::{NetworkICD, SECURE_NET, UNSECURE_NET};
+use crate::must::network::network_icd::{NetworkICD, SECURE_NET, UNSECURE_NET};
 use aes_gcm_siv::{Nonce, aead::{Aead}};
 use rand::{rngs::OsRng, RngCore};
 use rsa::traits::PublicKeyParts;
@@ -36,6 +36,8 @@ use mongodb::{Client, bson::{doc, DateTime}};
 use crate::must::log_assistant::LogAssistant;
 use crate::must::log_handler::LOG_HANDLER;
 use crate::must::mongo_db_handler::get_mongo_handler;
+use crate::must::network;
+use crate::must::network::remote_networks::NetworkConfig;
 use crate::must::processing_unit::actions_chain::filter::Protocol::UDP;
 use crate::must::processing_unit::processor::ProcessorUnit;
 use crate::must::protocols::protocol::Protocol;
@@ -51,14 +53,15 @@ use crate::must::web_api::models::user_record::UserRecord;
 
 
 
-const LOCAL_MUST_IP: &str = "192.168.223.1";
-const LOCAL_MUST_PORT: u16 = 42069;
+const LOCAL_MUST_IP: &str = "0.0.0.0";
+const LOCAL_MUST_PORT: u16 = 0;
 
 fn main(){
     let configuration_name = "Save18";
     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 
     //RsaCryptoKeys::generate(RsaKeySize::Bits2048);
+    let networks = load_remote_network().unwrap();
 
     let running = Arc::new(AtomicBool::new(true));
 
@@ -72,23 +75,22 @@ fn main(){
 
     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (pre_dismantle_sender, pre_dismantle_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
     let (secure_sender, secure_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
 
     let unsecure_device = device_picker();
-    println!("Selected Unsecure device: {}", unsecure_device.desc.clone().unwrap());
+    println!("Selected unsecure device: {}", unsecure_device.desc.clone().unwrap());
     let pre_process_sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
     let run_clone = running.clone();
     let receive_unsecure = thread::spawn(move  || ReceiveUnit::receive(unsecure_device, pre_process_sender_clone, run_clone));
 
     let secure_device = device_picker();
-    println!("Selected Secure device: {}", secure_device.desc.clone().unwrap());
+    println!("Selected secure device: {}", secure_device.desc.clone().unwrap());
     let run_clone = running.clone();
     let receive_secure = thread::spawn(move|| ReceiveUnit::receive(secure_device, pre_process_sender, run_clone));
     //let rsa = RsaCryptoKeys::load().unwrap();
     //post_process_sender.send(rsa.get_public_key().to_pkcs1_der().unwrap().as_ref().to_vec());
 
-    let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone()));
+    let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone(), &networks));
     let send_unit = SendUnit::new_udp(LOCAL_MUST_IP.parse().unwrap(), LOCAL_MUST_PORT);
 
     let send_unit_clone = send_unit.clone();
@@ -98,6 +100,7 @@ fn main(){
 
     // rsa_exchange_public_keys(&a.socket);
     // Clone the Arc to share send_unit between threads
+
 
     let run_clone = running.clone();
     ctrlc::set_handler(move||{
@@ -125,10 +128,18 @@ fn main(){
     secure_send.join().unwrap();
     unsecure_send.join().unwrap();
     process_thread.join().unwrap();
-
 }
 
-
+// fn main() -> std::io::Result<()> {
+//     let socket = UdpSocket::bind("0.0.0.0:0")?; // Bind to any available port on all interfaces
+//     let target = "192.168.100.9:8081";
+//
+//     let message = b"Hello, UDP from 192.168.100.8!";
+//     socket.send_to(message, target)?;
+//
+//     println!("Sent message to {}", target);
+//     Ok(())
+// }
 fn check_network_icd() -> Result<(), Box<dyn Error>>{
     // Create a sample NetworkICD instance
     let sample_icd = NetworkICD {
@@ -154,6 +165,14 @@ fn check_network_icd() -> Result<(), Box<dyn Error>>{
 
     Ok(())
 }
+
+fn load_remote_network() -> Result<NetworkConfig, Box<dyn std::error::Error>> {
+    let remote_networks_json_file_path = "remote_networks.json";
+    let network_config: NetworkConfig = JsonHandler::load(remote_networks_json_file_path)?;
+
+    Ok(network_config)
+}
+
 
 fn rsa_exchange_public_keys(socket: &UdpSocket) -> Result<(), Box<dyn Error>> {
     let binding = RsaCryptoKeys::get_public_key_pem()?;
@@ -219,7 +238,6 @@ fn device_picker() -> Device {
     while choice < 1 || choice > devices.len() {
         println!("Select a device");
         show_devices();
-        print!("Please choose device:");
         let mut input = String::new();
         io::stdin().read_line(&mut input).expect("Failed to read line");
         choice = input.trim().parse::<usize>().unwrap();

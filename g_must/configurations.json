@@ -17,8 +17,8 @@
     "secure_net_port": 8080,
     "secure_net_subnet_mask": "255.255.255.0",
     "secure_net_bandwidth": 1024,
-    "unsecure_net": "192.168.100.9",
-    "unsecure_net_port": 8081,
+    "unsecure_net": "192.168.100.10",
+    "unsecure_net_port": 5005,
     "unsecure_net_subnet_mask": "255.255.255.0",
     "unsecure_net_bandwidth": 2048,
     "aes_type": "AesGcmSiv"

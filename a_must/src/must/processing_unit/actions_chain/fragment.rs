@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicU16, Ordering};
-use crate::must::network_icd::network_icd::NetworkICD;
+use crate::must::network::network_icd::NetworkICD;
 use std::collections::VecDeque;
 use serde::{Deserialize, Serialize};
 
