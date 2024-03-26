@@ -10,9 +10,10 @@ use bincode;
 pub const SECURE_NET:bool = true;
 pub const UNSECURE_NET:bool = true;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq,Clone)]
 pub struct NetworkICD {
     pub(crate) aes_key: Vec<u8>,
+    pub(crate) iv_or_nonce: Vec<u8>,
     pub(crate) network: bool,
     pub(crate) packet_number: u16,
     pub(crate) seq_number: u16,

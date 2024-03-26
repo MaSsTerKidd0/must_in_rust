@@ -1,5 +1,5 @@
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum AesType {
     AesGcmSiv,
     AesCtr,

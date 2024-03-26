@@ -21,7 +21,6 @@ impl Protocol for UdpProtocol {
         }
     }
 
-
     fn receive(&self, sender: Sender<Vec<u8>>) {
         let mut buffer = [0; 1024];
         let socket =  self.socket.try_clone().unwrap();
@@ -47,7 +46,7 @@ impl Protocol for UdpProtocol {
             match receiver.recv() {
 
                 Ok(data) => {
-                    println!("Data: {:?}", &data);
+                    //println!("Data: {:?}", &data);
                     match socket.send_to(&data, target_socket_addr) {
                         Ok(_) => println!("Successfully sent data to {}:{}", target_ip, target_port),
                         Err(e) => eprintln!("Failed to send data to {}: {}", target_socket_addr, e),
@@ -70,4 +69,5 @@ impl Clone for UdpProtocol {
             socket: self.socket.try_clone().expect("Failed to clone UdpSocket"),
         }
     }
+
 }

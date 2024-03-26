@@ -13,7 +13,7 @@
   },
   {
     "config_name": "Save18",
-    "secure_net": "127.0.0.1",
+    "secure_net": "192.168.100.11",
     "secure_net_port": 8080,
     "secure_net_subnet_mask": "255.255.255.0",
     "secure_net_bandwidth": 1024,

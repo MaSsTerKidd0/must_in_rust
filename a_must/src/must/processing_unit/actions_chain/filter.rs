@@ -7,6 +7,8 @@ pub enum Protocol {
     TCP = 6,
 }
 
+pub struct Filter;
+
 #[derive(Debug, PartialEq)]
 pub enum NetworkState {
     UnsecureNetwork,
@@ -15,7 +17,6 @@ pub enum NetworkState {
     SecureNetworkRemote,
 }
 
-pub struct Filter;
 
 impl Filter {
     pub fn identify_network_state_for_packet(packet_data: &[u8], config_record: &ConfigRecord, remote_networks: &NetworkConfig, protocol: Protocol) -> Option<NetworkState> {

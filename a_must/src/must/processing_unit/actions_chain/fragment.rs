@@ -15,7 +15,7 @@ pub struct Fragment{
 
 impl Fragment{
 
-    pub fn fragment(&self, data: &[u8], new_aes_key: Vec<u8>) -> VecDeque<NetworkICD> {
+    pub fn fragment(&self, data: &[u8], new_aes_key: Vec<u8>, aes_nonce_or_iv: Vec<u8>, net_type: bool) -> VecDeque<NetworkICD> {
         let mut new_packets = VecDeque::new();
         let data_len= self.second_net_max_bandwidth - HEADER_SIZE;
         let mut sequence_number = 1;
@@ -23,7 +23,8 @@ impl Fragment{
         for chunk in data.chunks(data_len as usize) {
             let packet = NetworkICD {
                 aes_key: new_aes_key.clone(),
-                network: false,
+                iv_or_nonce: aes_nonce_or_iv.clone(),
+                network: net_type,
                 packet_number: PACKET_COUNTER.load(Ordering::SeqCst),
                 seq_number: sequence_number,
                 data: Vec::from(chunk),

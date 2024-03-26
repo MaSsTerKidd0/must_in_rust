@@ -1,5 +1,4 @@
-#![allow(unused)]
-
+#![allow(warnings)]
 mod must;
 
 use std::string::String;
@@ -145,31 +144,31 @@ fn main(){
 //     println!("Sent message to {}", target);
 //     Ok(())
 // }
-fn check_network_icd() -> Result<(), Box<dyn Error>>{
-    // Create a sample NetworkICD instance
-    let sample_icd = NetworkICD {
-        aes_key: vec![1, 2, 3, 4, 5],
-        network: true,
-        packet_number: 123,
-        seq_number: 456,
-        data: vec![9, 8, 7, 6, 5],
-    };
-
-    // Serialize the sample_icd to bytes
-    let serialized_bytes = sample_icd.to_bytes()?;
-
-    // Deserialize the bytes back into a NetworkICD instance
-    let deserialized_icd = NetworkICD::from_bytes(&serialized_bytes)?;
-
-    // Print the original and deserialized NetworkICD instances to verify they are the same
-    println!("Original ICD: {:?}", sample_icd);
-    println!("Deserialized ICD: {:?}", deserialized_icd);
-
-    // Verify that the original and deserialized instances are the same
-    assert_eq!(sample_icd, deserialized_icd);
-
-    Ok(())
-}
+// fn check_network_icd() -> Result<(), Box<dyn Error>>{
+//     // Create a sample NetworkICD instance
+//     let sample_icd = NetworkICD {
+//         aes_key: vec![1, 2, 3, 4, 5],
+//         network: true,
+//         packet_number: 123,
+//         seq_number: 456,
+//         data: vec![9, 8, 7, 6, 5],
+//     };
+//
+//     // Serialize the sample_icd to bytes
+//     let serialized_bytes = sample_icd.to_bytes()?;
+//
+//     // Deserialize the bytes back into a NetworkICD instance
+//     let deserialized_icd = NetworkICD::from_bytes(&serialized_bytes)?;
+//
+//     // Print the original and deserialized NetworkICD instances to verify they are the same
+//     println!("Original ICD: {:?}", sample_icd);
+//     println!("Deserialized ICD: {:?}", deserialized_icd);
+//
+//     // Verify that the original and deserialized instances are the same
+//     assert_eq!(sample_icd, deserialized_icd);
+//
+//     Ok(())
+// }
 
 fn load_remote_network() -> Result<NetworkConfig, Box<dyn std::error::Error>> {
     let remote_networks_json_file_path = "remote_networks.json";
