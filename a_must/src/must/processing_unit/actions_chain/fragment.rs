@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 const HEADER_SIZE: u16 = 4;
 static PACKET_COUNTER: AtomicU16 = AtomicU16::new(1);
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Fragment{
     pub(crate) first_net_max_bandwidth: u16,
     pub(crate) second_net_max_bandwidth: u16,

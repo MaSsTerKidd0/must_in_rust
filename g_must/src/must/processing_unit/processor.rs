@@ -33,21 +33,30 @@ pub struct ProcessorUnit;
 impl ProcessorUnit {
     pub(crate) fn process(packet_data_rx: Receiver<Vec<u8>>, processed_data_tx: Sender<Vec<u8>>, config_record: ConfigRecord, remote_networks: &NetworkConfig) {
         let mut received_public_key = None;
+
         // while received_public_key.is_none() {
+        //     processed_data_tx.send(REQUEST_PUBLIC_KEY.as_bytes().to_vec()).expect("Failed to request public key");
         //     if let Ok(received_message) = packet_data_rx.recv() {
-        //         // Assuming REQUEST_PUBLIC_KEY and KEY_RECEIVED_ACKNOWLEDGMENT are defined elsewhere
-        //         received_public_key = handle_key_exchange(received_message, REQUEST_PUBLIC_KEY, KEY_RECEIVED_ACKNOWLEDGMENT);
-        //         if let Some(public_key_pem) = &received_public_key {
-        //             processed_data_tx.send(RsaCryptoKeys::get_public_key_pem().unwrap().as_bytes().to_vec()).expect("Failed to send public key PEM");
-        //         }
+        //         // Check if the received message is a request for the public key and send yours if so
+        //         if String::from_utf8_lossy(&received_message) == REQUEST_PUBLIC_KEY {
+        //             // Send your public key
+        //             let my_public_key = RsaCryptoKeys::get_public_key_pem().expect("Failed to get public key PEM");
+        //             processed_data_tx.send(my_public_key.as_bytes().to_vec()).expect("Failed to send public key PEM");
+        //
+        //             // Additionally, send a request for the other party's public key
+        //
+        //         } else {
+        //             // Handle receiving the other party's public key
+        //             received_public_key = handle_key_exchange(received_message, REQUEST_PUBLIC_KEY, KEY_RECEIVED_ACKNOWLEDGMENT);
         //     }
+        //     thread::sleep(Duration::from_millis(500));
         // }
 
 
         let aes_type = AesType::from_str(&config_record.aes_type).unwrap();
         let fragment_unit = Fragment {
-            first_net_max_bandwidth: config_record.unsecure_net_bandwidth as u16,
-            second_net_max_bandwidth: config_record.secure_net_bandwidth as u16,
+            first_net_max_bandwidth: 8 as u16,
+            second_net_max_bandwidth: 16 as u16,
         };
 
         let mut packet_counter: u32 = 0;
@@ -233,16 +242,17 @@ impl ProcessorUnit {
 }
 
 pub fn handle_key_exchange(received_message: Vec<u8>, request_public_key: &str, key_received_acknowledgment: &str) -> Option<RsaPublicKey> {
-    let message_str = String::from_utf8(received_message).unwrap_or_default();
-
-    if message_str == request_public_key {
-        match RsaCryptoKeys::get_public_key_pem() {
-            Ok(pem_str) => {
-                let public_key_pem = pem_str.as_bytes().to_vec();
-                let recv_public_key = RsaPublicKey::from_pkcs1_der(&*public_key_pem).unwrap();
-                return Some(recv_public_key);
-            }
+    // This function now assumes received_message could be a public key in PEM format directly
+    // Try to parse the received message as a PEM-encoded public key
+    if let Ok(pem_str) = String::from_utf8(received_message) {
+        // Attempt to parse the PEM string into an RsaPublicKey
+        match RsaPublicKey::from_pkcs1_pem(&pem_str) {
+            Ok(public_key) => {
+                // Optionally, send an acknowledgment here if needed
+                return Some(public_key);
+            },
             Err(_) => {
+                // The message wasn't a valid PEM-encoded public key
                 // Handle error or continue
             }
         }

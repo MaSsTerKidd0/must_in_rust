@@ -134,17 +134,6 @@ fn main(){
 
 
 
-// fn main() -> std::io::Result<()> {
-//     let socket = UdpSocket::bind("0.0.0.0:0")?; // Bind to any available port on all interfaces
-//     let target = "192.168.100.9:8081";
-//
-//     let message = b"Hello, UDP from 192.168.100.8!";
-//     socket.send_to(message, target)?;
-//
-//     println!("Sent message to {}", target);
-//     Ok(())
-// }
-
 // fn check_network_icd() -> Result<(), Box<dyn Error>>{
 //     // Create a sample NetworkICD instance
 //     let sample_icd = NetworkICD {
@@ -209,31 +198,19 @@ fn device_picker() -> Device {
     return devices.get(choice - 1).unwrap().clone();
 }
 
-fn check_assemble_packets(packets: VecDeque<NetworkICD>) {
-    let assemble = Fragment {
-        first_net_max_bandwidth: 0,
-        second_net_max_bandwidth: 0,
-    };
+// fn check_assemble_packets(packets: VecDeque<NetworkICD>) {
+//     let assemble = Fragment {
+//         first_net_max_bandwidth: 0,
+//         second_net_max_bandwidth: 0,
+//     };
+//
+//     let assembled_packet = assemble.assemble(packets);
+//     match String::from_utf8(assembled_packet) {
+//         Ok(s) => println!("Converted ASCII: {}", s),
+//         Err(e) => println!("Failed to convert: {}", e),
+//     }
+// }
 
-    let assembled_packet = assemble.assemble(packets);
-    match String::from_utf8(assembled_packet) {
-        Ok(s) => println!("Converted ASCII: {}", s),
-        Err(e) => println!("Failed to convert: {}", e),
-    }
-}
-
-//TODO: use this to generate random nonce put in the aes
-fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16])
-{
-    let key = KeyGenerator::generate_key(KeySize::Bits256);
-    println!("key: {:?}", hex::encode(&key));
-
-    let mut nonce_bytes: [u8; 16] = [0; 16];
-    OsRng.fill_bytes(&mut nonce_bytes);
-    println!("Nonce: {:?}", hex::encode(&nonce_bytes));
-
-    return (key, nonce_bytes);
-}
 
 
 // #[actix_web::main]

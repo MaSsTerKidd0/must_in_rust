@@ -50,6 +50,8 @@ impl Protocol for UdpProtocol {
                     match socket.send_to(&data, target_socket_addr) {
                         Ok(_) => println!("Successfully sent data to {}:{}", target_ip, target_port),
                         Err(e) => eprintln!("Failed to send data to {}: {}", target_socket_addr, e),
+
+                        //TODO: convert this to write for the log file
                     }
                 },
                 Err(e) => {

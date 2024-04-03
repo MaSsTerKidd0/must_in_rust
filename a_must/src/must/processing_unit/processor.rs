@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::error::Error;
 use std::ops::Deref;
 use std::path::PrefixComponent;
@@ -7,6 +8,7 @@ use std::time::{Duration, Instant};
 use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
 use rsa::{Oaep, RsaPublicKey};
 use rsa::sha2::Sha256;
+use serde::__private::from_utf8_lossy;
 use crate::must::ciphers_lib::AesType;
 use crate::must::ciphers_lib::key_generator::{KeyGenerator, KeySize};
 use crate::must::ciphers_lib::rsa_crypto::RsaCryptoKeys;
@@ -27,27 +29,40 @@ const SENDING_KEY_PREFIX: &str = "SENDING_KEY:";
 const SOCKET_READ_TIMEOUT_SECS: u64 = 5;
 const SOCKET_WRITE_TIMEOUT_SECS: u64 = 5;
 const BUFFER_SIZE: usize = 1024;
+const MIN_PACKETS_TO_ASSEMBLE: usize = 25;
+
 
 pub struct ProcessorUnit;
 
 impl ProcessorUnit {
     pub(crate) fn process(packet_data_rx: Receiver<Vec<u8>>, processed_data_tx: Sender<Vec<u8>>, config_record: ConfigRecord, remote_networks: &NetworkConfig) {
         let mut received_public_key = None;
+
         // while received_public_key.is_none() {
         //     if let Ok(received_message) = packet_data_rx.recv() {
-        //         // Assuming REQUEST_PUBLIC_KEY and KEY_RECEIVED_ACKNOWLEDGMENT are defined elsewhere
-        //         received_public_key = handle_key_exchange(received_message, REQUEST_PUBLIC_KEY, KEY_RECEIVED_ACKNOWLEDGMENT);
-        //         if let Some(public_key_pem) = &received_public_key {
-        //             processed_data_tx.send(RsaCryptoKeys::get_public_key_pem().unwrap().as_bytes().to_vec()).expect("Failed to send public key PEM");
+        //         let received_message_payload = ProcessorUnit::extract_payload(&received_message, UDP);
+        //         if String::from_utf8_lossy(&received_message_payload.unwrap()) == REQUEST_PUBLIC_KEY {
+        //             // Send your public key
+        //             let my_public_key = RsaCryptoKeys::get_public_key_pem().expect("Failed to get public key PEM");
+        //             processed_data_tx.send(my_public_key.as_bytes().to_vec()).expect("Failed to send public key PEM");
+        //
+        //             // Additionally, send a request for the other party's public key
+        //             processed_data_tx.send(REQUEST_PUBLIC_KEY.as_bytes().to_vec()).expect("Failed to request public key");
+        //
+        //             break;
         //         }
+        //         // } else {
+        //         //     // Handle receiving the other party's public key
+        //         //     received_public_key = handle_key_exchange(received_message, REQUEST_PUBLIC_KEY, KEY_RECEIVED_ACKNOWLEDGMENT);
+        //         // }
         //     }
         // }
-
+        let mut net_icd_queue = VecDeque::new();
 
         let aes_type = AesType::from_str(&config_record.aes_type).unwrap();
         let fragment_unit = Fragment {
-            first_net_max_bandwidth: config_record.unsecure_net_bandwidth as u16,
-            second_net_max_bandwidth: config_record.secure_net_bandwidth as u16,
+            first_net_max_bandwidth: 8 as u16,
+            second_net_max_bandwidth: 16 as u16,
         };
 
         let mut packet_counter: u32 = 0;
@@ -59,17 +74,20 @@ impl ProcessorUnit {
             let network_state = Filter::identify_network_state_for_packet(&packet_vec, &config_record, remote_networks, UDP);
             match network_state {
                 Some(NetworkState::SecureNetwork) => {
-                    // Handle packet for secure local network
-                    println!("local secure network");
                     ProcessorUnit::handle_secure_network_packet(packet_vec, encryptor.clone());
                 }
                 Some(NetworkState::UnsecureNetwork) => {
-                    // Handle packet for unsecure local network
-                    println!("local unsecure network")
+                   //TODO:: assemble packets
+                    ProcessorUnit::process_unsecure_packet(packet_vec, UDP, &mut net_icd_queue);
+                    let assembled_data = ProcessorUnit::handle_unsecure_network_packet(&mut net_icd_queue, &fragment_unit);
+                    if !assembled_data.is_empty() {
+                        // Handle the assembled data
+                        let pac = from_utf8_lossy(&assembled_data);
+                        println!("Processed packet as text: {}", pac);
+                    }
+
                 }
                 Some(NetworkState::SecureNetworkRemote) => {
-                    // Handle packet for secure remote network
-                    print!("Secure Network!");
                     let aes_key = KeyGenerator::generate_key(KeySize::Bits256);
                     let nonce = Encryptor::generate_iv_or_nonce(Some(aes_type)).unwrap_or_default();
                     if let Some(encrypted_payload) = ProcessorUnit::encrypt_packet_payload(&packet_vec, aes_key.clone(), nonce.clone(), encryptor.clone()) {
@@ -78,13 +96,12 @@ impl ProcessorUnit {
                     }
                 }
                 Some(NetworkState::UnsecureNetworkRemote) => {
-                    // Handle packet for unsecure remote network
                     let packet_payload = ProcessorUnit::extract_payload(packet_vec.as_slice(), UDP);
                     let packets_to_send = fragment_unit.fragment(&*packet_payload.unwrap(), Vec::new(), Vec::new() ,false);
                     ProcessorUnit::send_packets(packets_to_send.iter().filter_map(|packet| packet.to_bytes().ok()).collect(), &processed_data_tx, &mut packet_counter, &mut start_time);
                 }
                 None => {
-                    //Unrecognized Network
+                    //TODO:change to log
                     println!("Unrecognized Network")
                 }
             }
@@ -185,9 +202,36 @@ impl ProcessorUnit {
         Some(Vec::new()) // Assuming you'll replace this with actual logic to return meaningful data
     }
 
-    fn handle_unsecure_network_packet(payload: Vec<u8>, protocol: Protocol) -> Vec<u8> {
-        //assemble_packet(&payload, protocol)
-        unimplemented!()
+    // fn handle_unsecure_network_packet(packet: Vec<u8>, protocol: Protocol, fragment: Fragment) -> Vec<u8> {
+    //     let packet_payload = ProcessorUnit::extract_payload(&packet, protocol);
+    //     let mut net_icd_queue:VecDeque<NetworkICD> = Default::default();
+    //     match NetworkICD::from_bytes(&packet_payload.unwrap()) {
+    //         Ok(net_icd_packet) => {
+    //             net_icd_queue.push_back(net_icd_packet);
+    //         }
+    //         Err(_) => {
+    //
+    //         }
+    //     }
+    //
+    //
+    //     fragment.assemble(net_icd_queue)
+    //
+    // }
+    fn handle_unsecure_network_packet(net_icd_queue: &mut VecDeque<NetworkICD>, fragment: &Fragment) -> Vec<u8> {
+        if net_icd_queue.len() >= MIN_PACKETS_TO_ASSEMBLE {
+            fragment.assemble(net_icd_queue.clone())
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn process_unsecure_packet(packet: Vec<u8>, protocol: Protocol, net_icd_queue: &mut VecDeque<NetworkICD>) {
+        if let Some(packet_payload) = ProcessorUnit::extract_payload(&packet, protocol) {
+            if let Ok(net_icd_packet) = NetworkICD::from_bytes(&packet_payload) {
+                net_icd_queue.push_back(net_icd_packet);
+            }
+        }
     }
 
     fn decrypt_rsa_packet(cipher_data: &[u8]) -> Option<Vec<u8>> {
@@ -206,21 +250,21 @@ impl ProcessorUnit {
             .unwrap_or_default())
     }
 
-    fn extract_aes_key_and_payload_from_rsa_decrypted_data(decrypted_data: &[u8]) -> Option<(Vec<u8>, Vec<u8>)> {
-        if decrypted_data.len() > 32 {
-            // Assuming the AES key is the first 32 bytes of the decrypted data
-            let aes_key = decrypted_data[..32].to_vec();
-            // The rest of the data is the payload
-            let payload = decrypted_data[32..].to_vec();
-
-            Some((aes_key, payload))
-        } else {
-            // If the decrypted data is not long enough to contain both an AES key and payload,
-            // return None to indicate a failure to extract
-            // error
-            None
-        }
-    }
+    // fn extract_aes_key_and_payload_from_rsa_decrypted_data(decrypted_data: &[u8]) -> Option<(Vec<u8>, Vec<u8>)> {
+    //     if decrypted_data.len() > 32 {
+    //         // Assuming the AES key is the first 32 bytes of the decrypted data
+    //         let aes_key = decrypted_data[..32].to_vec();
+    //         // The rest of the data is the payload
+    //         let payload = decrypted_data[32..].to_vec();
+    //
+    //         Some((aes_key, payload))
+    //     } else {
+    //         // If the decrypted data is not long enough to contain both an AES key and payload,
+    //         // return None to indicate a failure to extract
+    //         // error
+    //         None
+    //     }
+    // }
 
     fn assemble_packet(payload: &[u8], protocol: Protocol) -> Vec<u8> {
         let mut assembled_packet = Vec::new();
@@ -234,20 +278,21 @@ impl ProcessorUnit {
     }
 }
 
-pub fn handle_key_exchange(received_message: Vec<u8>, request_public_key: &str, key_received_acknowledgment: &str) -> Option<RsaPublicKey> {
-    let message_str = String::from_utf8(received_message).unwrap_or_default();
-
-    if message_str == request_public_key {
-        match RsaCryptoKeys::get_public_key_pem() {
-            Ok(pem_str) => {
-                let public_key_pem = pem_str.as_bytes().to_vec();
-                let recv_public_key = RsaPublicKey::from_pkcs1_der(&*public_key_pem).unwrap();
-                return Some(recv_public_key);
-            }
-            Err(_) => {
-                // Handle error or continue
-            }
-        }
-    }
-    None
-}
+// pub fn handle_key_exchange(received_message: Vec<u8>, request_public_key: &str, key_received_acknowledgment: &str) -> Option<RsaPublicKey> {
+//     // This function now assumes received_message could be a public key in PEM format directly
+//     // Try to parse the received message as a PEM-encoded public key
+//     if let Ok(pem_str) = String::from_utf8(received_message) {
+//         // Attempt to parse the PEM string into an RsaPublicKey
+//         match RsaPublicKey::from_pkcs1_pem(&pem_str) {
+//             Ok(public_key) => {
+//                 // Optionally, send an acknowledgment here if needed
+//                 return Some(public_key);
+//             },
+//             Err(_) => {
+//                 // The message wasn't a valid PEM-encoded public key
+//                 // Handle error or continue
+//             }
+//         }
+//     }
+//     None
+// }

@@ -56,79 +56,79 @@ use crate::must::web_api::models::user_record::UserRecord;
 const LOCAL_MUST_IP: &str = "0.0.0.0";
 const LOCAL_MUST_PORT: u16 = 0;
 
-fn main(){
-    let configuration_name = "Save18";
-    let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
-
-    //RsaCryptoKeys::generate(RsaKeySize::Bits2048);
-    let networks = load_remote_network().unwrap();
-
-    let running = Arc::new(AtomicBool::new(true));
-
-
-    let mut secure_net = String::from(config.secure_net.clone());
-    let mut  unsecure_net = String::from(config.unsecure_net.clone());
-
-    let secure_net_port:u16 = config.secure_net_port;
-    let unsecure_net_port:u16 = config.unsecure_net_port;
-    println!("Secure-{}:{}, Unsecure-{}:{}",secure_net, secure_net_port, unsecure_net, unsecure_net_port);
-
-    let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (secure_sender, secure_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
-
-
-    let unsecure_device = device_picker();
-    println!("Selected unsecure device: {}", unsecure_device.desc.clone().unwrap());
-    let pre_process_sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
-    let run_clone = running.clone();
-    let receive_unsecure = thread::spawn(move  || ReceiveUnit::receive(unsecure_device, pre_process_sender_clone, run_clone));
-
-    let secure_device = device_picker();
-    println!("Selected secure device: {}", secure_device.desc.clone().unwrap());
-    let run_clone = running.clone();
-    let receive_secure = thread::spawn(move|| ReceiveUnit::receive(secure_device, pre_process_sender, run_clone));
-
-
-    let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone(), &networks));
-    let send_unit = SendUnit::new_udp(LOCAL_MUST_IP.parse().unwrap(), LOCAL_MUST_PORT);
-
-    let send_unit_clone = send_unit.clone();
-    let secure_send = thread::spawn(move || send_unit_clone.send(secure_receiver,secure_net.parse().unwrap(), secure_net_port));
-    let send_unit_clone = send_unit.clone();
-    let unsecure_send = thread::spawn(move || send_unit.send(post_process_receiver,unsecure_net.parse().unwrap(), unsecure_net_port));
-
-    // rsa_exchange_public_keys(&a.socket);
-    // Clone the Arc to share send_unit between threads
-
-
-    let run_clone = running.clone();
-    ctrlc::set_handler(move||{
-        run_clone.store(false, Ordering::SeqCst)
-    }).expect("Error setting SIGINT handler");
-
-    let run_clone = running.clone();
-    signal_hook::flag::register(signal_hook::consts::SIGTERM, run_clone)
-        .expect("Error setting SIGTERM handler");
-
-    while running.load(Ordering::SeqCst){
-        thread::sleep(Duration::from_secs(1));
-    }
-
-    // This triggers ReceiveUnit::receive to stop.
-    // The Sender that ReceiveUnit::receive thread owns, goes out of scope.
-    // When a Sender goes out of scope, its accompanying receiver immediately
-    // returns error.
-    // When that happens, it causes a chain reaction that cause all the threads
-    // to error out and return gracefully.
-    running.store(false, Ordering::SeqCst);
-
-    receive_unsecure.join().unwrap();
-    receive_secure.join().unwrap();
-    secure_send.join().unwrap();
-    unsecure_send.join().unwrap();
-    process_thread.join().unwrap();
-}
+// fn main(){
+//     let configuration_name = "Save18";
+//     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
+//
+//     //RsaCryptoKeys::generate(RsaKeySize::Bits2048);
+//     let networks = load_remote_network().unwrap();
+//
+//     let running = Arc::new(AtomicBool::new(true));
+//
+//
+//     let mut secure_net = String::from(config.secure_net.clone());
+//     let mut  unsecure_net = String::from(config.unsecure_net.clone());
+//
+//     let secure_net_port:u16 = config.secure_net_port;
+//     let unsecure_net_port:u16 = config.unsecure_net_port;
+//     println!("Secure-{}:{}, Unsecure-{}:{}",secure_net, secure_net_port, unsecure_net, unsecure_net_port);
+//
+//     let (pre_process_sender, pre_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+//     let (post_process_sender, post_process_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+//     let (secure_sender, secure_receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+//
+//
+//     let unsecure_device = device_picker();
+//     println!("Selected unsecure device: {}", unsecure_device.desc.clone().unwrap());
+//     let pre_process_sender_clone = pre_process_sender.clone(); // Clone the sender for the first thread
+//     let run_clone = running.clone();
+//     let receive_unsecure = thread::spawn(move  || ReceiveUnit::receive(unsecure_device, pre_process_sender_clone, run_clone));
+//
+//     let secure_device = device_picker();
+//     println!("Selected secure device: {}", secure_device.desc.clone().unwrap());
+//     let run_clone = running.clone();
+//     let receive_secure = thread::spawn(move|| ReceiveUnit::receive(secure_device, pre_process_sender, run_clone));
+//
+//
+//     let process_thread = thread::spawn(move|| ProcessorUnit::process(pre_process_receiver, post_process_sender, config.clone(), &networks));
+//     let send_unit = SendUnit::new_udp(LOCAL_MUST_IP.parse().unwrap(), LOCAL_MUST_PORT);
+//
+//     let send_unit_clone = send_unit.clone();
+//     let secure_send = thread::spawn(move || send_unit_clone.send(secure_receiver,secure_net.parse().unwrap(), secure_net_port));
+//     let send_unit_clone = send_unit.clone();
+//     let unsecure_send = thread::spawn(move || send_unit.send(post_process_receiver,unsecure_net.parse().unwrap(), unsecure_net_port));
+//
+//     // rsa_exchange_public_keys(&a.socket);
+//     // Clone the Arc to share send_unit between threads
+//
+//
+//     let run_clone = running.clone();
+//     ctrlc::set_handler(move||{
+//         run_clone.store(false, Ordering::SeqCst)
+//     }).expect("Error setting SIGINT handler");
+//
+//     let run_clone = running.clone();
+//     signal_hook::flag::register(signal_hook::consts::SIGTERM, run_clone)
+//         .expect("Error setting SIGTERM handler");
+//
+//     while running.load(Ordering::SeqCst){
+//         thread::sleep(Duration::from_secs(1));
+//     }
+//
+//     // This triggers ReceiveUnit::receive to stop.
+//     // The Sender that ReceiveUnit::receive thread owns, goes out of scope.
+//     // When a Sender goes out of scope, its accompanying receiver immediately
+//     // returns error.
+//     // When that happens, it causes a chain reaction that cause all the threads
+//     // to error out and return gracefully.
+//     running.store(false, Ordering::SeqCst);
+//
+//     receive_unsecure.join().unwrap();
+//     receive_secure.join().unwrap();
+//     secure_send.join().unwrap();
+//     unsecure_send.join().unwrap();
+//     process_thread.join().unwrap();
+// }
 
 
 
@@ -235,32 +235,32 @@ fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16])
 }
 
 
-// #[actix_web::main]
-// async fn main() -> std::io::Result<()> {
-//     std::env::set_var("RUST_LOG", "actix_web=debug");
-//     env_logger::init();
-//
-//     HttpServer::new(move || {
-//         let cors = Cors::default()
-//             .allowed_origin_fn(|origin, _req_head| {
-//                 true
-//             })
-//             .allowed_methods(vec!["GET", "POST", "OPTIONS"])
-//             .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
-//             .max_age(3600);
-//         App::new()
-//             .wrap(Logger::default())
-//             .wrap(cors)
-//             .configure(handlers::config)
-//             .configure(handlers::dashboard)
-//             .service(handlers::login)
-//             .service(handlers::rsa)
-//
-//     })
-//         .bind("127.0.0.1:8080")?
-//         .run()
-//         .await
-// }
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "actix_web=debug");
+    env_logger::init();
+
+    HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin_fn(|origin, _req_head| {
+                true
+            })
+            .allowed_methods(vec!["GET", "POST", "OPTIONS"])
+            .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
+            .max_age(3600);
+        App::new()
+            .wrap(Logger::default())
+            .wrap(cors)
+            .configure(handlers::config)
+            .configure(handlers::dashboard)
+            .service(handlers::login)
+            .service(handlers::rsa)
+
+    })
+        .bind("127.0.0.1:8080")?
+        .run()
+        .await
+}
 
 // #[tokio::main]
 // async fn main() {
