@@ -1,16 +1,25 @@
 use std::io;
 use actix_web::{web, HttpResponse, Responder, post, get};
 use crate::must::json_handler::JsonHandler;
+use crate::must::web_api::middlewares::Claims;
 use crate::must::web_api::models::config_record::ConfigRecord;
 
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/config")
+            .service(get_config)
             .service(save_config)
             .service(get_configurations)
             .service(get_configuration_by_name),
     );
+}
+
+
+#[get("/config")]
+async fn get_config(claims: web::ReqData<Claims>) -> impl Responder {
+    let role = claims.role.as_str();
+    (format!("Welcome to the config page, {}!", role), actix_web::http::StatusCode::OK)
 }
 
 #[post("/")]

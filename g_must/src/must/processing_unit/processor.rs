@@ -55,8 +55,8 @@ impl ProcessorUnit {
 
         let aes_type = AesType::from_str(&config_record.aes_type).unwrap();
         let fragment_unit = Fragment {
-            first_net_max_bandwidth: 8 as u16,
-            second_net_max_bandwidth: 16 as u16,
+            first_net_max_bandwidth: config_record.secure_net_bandwidth as u16,
+            second_net_max_bandwidth: config_record.unsecure_net_bandwidth as u16,
         };
 
         let mut packet_counter: u32 = 0;

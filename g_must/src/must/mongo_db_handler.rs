@@ -6,7 +6,7 @@ use mongodb::bson::{doc, Document};
 use mongodb::bson::oid::ObjectId;
 use once_cell::sync::Lazy;
 use tokio::sync::Mutex;
-use crate::must::web_api::models::user_record::UserRecord;
+use crate::must::web_api::models::user_record::{Role, UserRecord};
 
 #[derive(Clone)]
 pub struct MongoDBHandler {
@@ -24,6 +24,22 @@ impl MongoDBHandler {
     // Gets a collection
     fn collection<T>(&self, name: &str) -> Collection<T> {
         self.db.collection::<T>(name)
+    }
+
+    pub async fn get_user(&self, username: &str) -> mongodb::error::Result<Option<UserRecord>> {
+        let users_collection = self.collection::<UserRecord>("Users");
+        let filter = doc! { "username": username };
+        let user = users_collection.find_one(filter, None).await?;
+        Ok(user)
+    }
+
+    pub async fn check_user_role(&self, username: &str, required_role: Role) -> mongodb::error::Result<bool> {
+        let user_option = self.get_user(username).await?;
+        if let Some(user) = user_option {
+            Ok(user.role == required_role)
+        } else {
+            Ok(false) // User not found
+        }
     }
 
     pub(crate) async fn insert_user(&self, user: UserRecord) -> mongodb::error::Result<()> {

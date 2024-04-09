@@ -61,8 +61,8 @@ impl ProcessorUnit {
 
         let aes_type = AesType::from_str(&config_record.aes_type).unwrap();
         let fragment_unit = Fragment {
-            first_net_max_bandwidth: 8 as u16,
-            second_net_max_bandwidth: 16 as u16,
+            first_net_max_bandwidth: config_record.secure_net_bandwidth as u16,
+            second_net_max_bandwidth: config_record.unsecure_net_bandwidth as u16,
         };
 
         let mut packet_counter: u32 = 0;
@@ -72,18 +72,22 @@ impl ProcessorUnit {
 
         while let Ok(packet_vec) = packet_data_rx.recv() {
             let network_state = Filter::identify_network_state_for_packet(&packet_vec, &config_record, remote_networks, UDP);
+
             match network_state {
                 Some(NetworkState::SecureNetwork) => {
-                    ProcessorUnit::handle_secure_network_packet(packet_vec, encryptor.clone());
+                    //TODO: ASSEMBLE PACKET
+                    ProcessorUnit::assemble_packets(packet_vec, UDP, &mut net_icd_queue);
+                    let assembled_data = ProcessorUnit::handle_unsecure_network_packet(&mut net_icd_queue, &fragment_unit);
+                    ProcessorUnit::handle_secure_network_packet(assembled_data, encryptor.clone());
+
                 }
                 Some(NetworkState::UnsecureNetwork) => {
-                   //TODO:: assemble packets
-                    ProcessorUnit::process_unsecure_packet(packet_vec, UDP, &mut net_icd_queue);
+                    ProcessorUnit::assemble_packets(packet_vec, UDP, &mut net_icd_queue);
                     let assembled_data = ProcessorUnit::handle_unsecure_network_packet(&mut net_icd_queue, &fragment_unit);
                     if !assembled_data.is_empty() {
                         // Handle the assembled data
                         let pac = from_utf8_lossy(&assembled_data);
-                        println!("Processed packet as text: {}", pac);
+                        println!("Process10ed packet as text: {}", pac);
                     }
 
                 }
@@ -182,8 +186,7 @@ impl ProcessorUnit {
                         let encrypted_aes_data = &net_icd_packet.data;
                         let aes_nonce_or_iv = &net_icd_packet.iv_or_nonce;
                         let decrypted_aes_data = ProcessorUnit::decrypt_aes_payload(encrypted_aes_data, aes_current_key, aes_nonce_or_iv, encryptor);
-                        println!("Decrypted Data: {:?}", decrypted_aes_data);
-
+                        println!("{:?}", decrypted_aes_data);
                         if let Some(decrypted_data) = decrypted_aes_data {
                             match String::from_utf8(decrypted_data) {
                                 Ok(text) => println!("Decrypted Text: {}", text),
@@ -226,7 +229,7 @@ impl ProcessorUnit {
         }
     }
 
-    fn process_unsecure_packet(packet: Vec<u8>, protocol: Protocol, net_icd_queue: &mut VecDeque<NetworkICD>) {
+    fn assemble_packets(packet: Vec<u8>, protocol: Protocol, net_icd_queue: &mut VecDeque<NetworkICD>) {
         if let Some(packet_payload) = ProcessorUnit::extract_payload(&packet, protocol) {
             if let Ok(net_icd_packet) = NetworkICD::from_bytes(&packet_payload) {
                 net_icd_queue.push_back(net_icd_packet);

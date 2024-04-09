@@ -6,6 +6,7 @@ use std::path::Path;
 use actix_web::http::header::IfRange::Date;
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use serde::{Deserialize, Serialize};
+use crate::must::web_api::middlewares::Claims;
 
 #[derive(Serialize, Deserialize)]
 struct LogEntry {
@@ -20,6 +21,15 @@ pub fn dashboard(cfg: &mut web::ServiceConfig) {
             .service(update_live_chart)
     );
 }
+
+
+#[get("/dashboard")]
+async fn get_dashboard(claims: web::ReqData<Claims>) -> impl Responder {
+    let role = claims.role.as_str();
+
+    (format!("Welcome to the dashboard page, {}!", role), actix_web::http::StatusCode::OK)
+}
+
 
 #[get("/log")]
 pub async fn update_live_chart() -> impl Responder {
