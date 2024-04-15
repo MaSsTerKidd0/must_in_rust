@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::error::Error;
 use std::ops::Deref;
 use std::path::PrefixComponent;
@@ -55,8 +56,14 @@ impl ProcessorUnit {
 
         let aes_type = AesType::from_str(&config_record.aes_type).unwrap();
         let fragment_unit = Fragment {
-            first_net_max_bandwidth: config_record.secure_net_bandwidth as u16,
-            second_net_max_bandwidth: config_record.unsecure_net_bandwidth as u16,
+            secure_net_max_bandwidth: config_record.secure_net_bandwidth as u16,
+            unsecure_net_max_bandwidth: config_record.unsecure_net_bandwidth as u16,
+        };
+
+
+        let fragment_unit = Fragment {
+            secure_net_max_bandwidth: 8 as u16,
+            unsecure_net_max_bandwidth: 16 as u16,
         };
 
         let mut packet_counter: u32 = 0;
@@ -64,19 +71,22 @@ impl ProcessorUnit {
 
         let encryptor = Encryptor::new(aes_type).unwrap();
 
+        let mut secure_network:VecDeque<NetworkICD> = VecDeque::new();
+        let mut unsecure_network:VecDeque<NetworkICD> = VecDeque::new();
+
         while let Ok(packet_vec) = packet_data_rx.recv() {
             let network_state = Filter::identify_network_state_for_packet(&packet_vec, &config_record, remote_networks, UDP);
             match network_state {
-                Some(NetworkState::SecureNetwork) => {
-                    // Handle packet for secure local network
-                    println!("local secure network");
-                    ProcessorUnit::handle_secure_network_packet(packet_vec, encryptor.clone());
-
-                }
-                Some(NetworkState::UnsecureNetwork) => {
-                    // Handle packet for unsecure local network
-                    println!("local unsecure network")
-                }
+                // Some(NetworkState::SecureNetwork) => {
+                //     // Handle packet for secure local network
+                //     println!("local secure network");
+                //     ProcessorUnit::handle_secure_network_packet(packet_vec, encryptor.clone());
+                //
+                // }
+                // Some(NetworkState::UnsecureNetwork) => {
+                //     // Handle packet for unsecure local network
+                //     println!("local unsecure network")
+                // }
                 Some(NetworkState::SecureNetworkRemote) => {
                     // Handle packet for secure remote network
 
@@ -92,12 +102,26 @@ impl ProcessorUnit {
                     // Handle packet for unsecure remote network
                     let packet_payload = ProcessorUnit::extract_payload(packet_vec.as_slice(), UDP);
                     let packets_to_send = fragment_unit.fragment(&*packet_payload.unwrap(), Vec::new(), Vec::new() ,false);
+                    println!("fragmented packets: {:?}", packets_to_send.len());
                     ProcessorUnit::send_packets(packets_to_send.iter().filter_map(|packet| packet.to_bytes().ok()).collect(), &processed_data_tx, &mut packet_counter, &mut start_time);
                 }
                 None => {
-                    //Unrecognized Network
-                    println!("Unrecognized Network")
+                    // Try to convert the payload to NetworkICD and check the network field
+                    if let Some(net_icd_packet) = ProcessorUnit::extract_network_icd(&packet_vec) {
+                        if net_icd_packet.network {
+                            // Secure network
+                            secure_network.push_back(net_icd_packet);
+                            println!("in Secure")
+                        } else {
+                            // Unsecure network
+                            unsecure_network.push_back(net_icd_packet);
+                            println!("in unSecure")
+                        }
+                    } else {
+                        println!("Unrecognized Network");
+                    }
                 }
+                _ => {}
             }
         }
     }
@@ -133,8 +157,6 @@ impl ProcessorUnit {
 
         for packet in packets {
             let packet_icd = NetworkICD::from_bytes(&packet);
-            println!("Packet ICD: {:?}", packet_icd.unwrap());
-            println!("Packet Data: {:?}", &packet);
             if processed_data_tx.send(packet).is_err() {
                 LogAssistant::fragment_failure(OperationId::Fragmentation);
                 break;
@@ -168,32 +190,34 @@ impl ProcessorUnit {
     }
 
 
-    fn handle_secure_network_packet(packet: Vec<u8>, encryptor: Encryptor) -> Option<Vec<u8>> {
-        match ProcessorUnit::extract_payload(&packet, Protocol::UDP) {
+    fn extract_network_icd(packet: &Vec<u8>) -> Option<NetworkICD> {
+        match ProcessorUnit::extract_payload(packet, Protocol::UDP) {
             Some(payload) => {
-                let net_icd_packet_result = NetworkICD::from_bytes(&payload);
-                println!("Packet Data: {:?}", &payload);
-                // Here, we use pattern matching to handle the Result more gracefully
-                match net_icd_packet_result {
-                    Ok(net_icd_packet) => {
-                        println!("Packet ICD: {:?}", net_icd_packet);
-                        let aes_current_key = &net_icd_packet.aes_key;
-                        let encrypted_aes_data = &net_icd_packet.data;
-                        let aes_nonce_or_iv = &net_icd_packet.iv_or_nonce;
-                        let decrypted_aes_data = ProcessorUnit::decrypt_aes_payload(encrypted_aes_data, aes_current_key, aes_nonce_or_iv, encryptor);
-                        println!("Decrypted Data: {:?}", decrypted_aes_data);
-                    },
-                    Err(e) => eprintln!("Failed to parse Network ICD: {:?}", e),
+                match NetworkICD::from_bytes(&payload) {
+                    Ok(icd) => Some(icd),
+                    Err(_) => None  // Errors in parsing are handled by returning None
                 }
             }
-            None => {
-                // Handle the case where extracting the payload fails.
-                eprintln!("Failed to extract payload from packet.");
-            }
+            None => None  // No payload means no ICD
         }
-        Some(Vec::new()) // Assuming you'll replace this with actual logic to return meaningful data
     }
 
+    fn handle_secure_network_packet(packet: Vec<u8>, encryptor: Encryptor) -> Option<Vec<u8>> {
+        match ProcessorUnit::extract_network_icd(&packet) {
+            Some(net_icd_packet) => {
+                let aes_current_key = &net_icd_packet.aes_key;
+                let encrypted_aes_data = &net_icd_packet.data;
+                let aes_nonce_or_iv = &net_icd_packet.iv_or_nonce;
+                let decrypted_aes_data = ProcessorUnit::decrypt_aes_payload(encrypted_aes_data, aes_current_key, aes_nonce_or_iv, encryptor);
+                println!("Decrypted Data: {:?}", decrypted_aes_data);
+                Some(Vec::new()) // Assuming you'll replace this with actual logic to return meaningful data
+            }
+            None => {
+                eprintln!("Error processing secure network packet");
+                None
+            }
+        }
+    }
     fn handle_unsecure_network_packet(payload: Vec<u8>, protocol: Protocol) -> Vec<u8> {
         //assemble_packet(&payload, protocol)
         unimplemented!()

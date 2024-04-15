@@ -17,6 +17,7 @@ pub struct NetworkICD {
     pub(crate) network: bool,
     pub(crate) packet_number: u16,
     pub(crate) seq_number: u16,
+    pub(crate) frames_amount: u16,
     pub(crate) data: Vec<u8>,
 }
 

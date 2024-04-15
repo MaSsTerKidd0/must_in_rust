@@ -36,7 +36,7 @@ use crate::must::web_api::middlewares::{protected_route};
 
 
 const LOCAL_MUST_IP: &str = "0.0.0.0";
-const LOCAL_MUST_PORT: u16 = 0;
+const LOCAL_MUST_PORT: u16 = 0;//next available port
 
 fn main(){
     let configuration_name = "Save18";
@@ -162,18 +162,6 @@ fn device_picker() -> Device {
     return devices.get(choice - 1).unwrap().clone();
 }
 
-fn check_assemble_packets(packets: VecDeque<NetworkICD>) {
-    let assemble = Fragment {
-        first_net_max_bandwidth: 0,
-        second_net_max_bandwidth: 0,
-    };
-
-    let assembled_packet = assemble.assemble(packets);
-    match String::from_utf8(assembled_packet) {
-        Ok(s) => println!("Converted ASCII: {}", s),
-        Err(e) => println!("Failed to convert: {}", e),
-    }
-}
 
 //TODO: use this to generate random nonce put in the aes
 fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16])
