@@ -102,7 +102,6 @@ impl ProcessorUnit {
                     // Handle packet for unsecure remote network
                     let packet_payload = ProcessorUnit::extract_payload(packet_vec.as_slice(), UDP);
                     let packets_to_send = fragment_unit.fragment(&*packet_payload.unwrap(), Vec::new(), Vec::new() ,false);
-                    println!("fragmented packets: {:?}", packets_to_send.len());
                     ProcessorUnit::send_packets(packets_to_send.iter().filter_map(|packet| packet.to_bytes().ok()).collect(), &processed_data_tx, &mut packet_counter, &mut start_time);
                 }
                 None => {
@@ -156,7 +155,6 @@ impl ProcessorUnit {
                     start_time: &mut Instant) {
 
         for packet in packets {
-            let packet_icd = NetworkICD::from_bytes(&packet);
             if processed_data_tx.send(packet).is_err() {
                 LogAssistant::fragment_failure(OperationId::Fragmentation);
                 break;

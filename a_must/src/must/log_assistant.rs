@@ -1,6 +1,7 @@
 use std::time::SystemTime;
 use chrono::{Local, DateTime};
 use crate::must::log_handler::{LOG_HANDLER, LogLevel};
+use crate::must::network::network_icd::NetworkICD;
 
 pub enum OperationId {
     SendPacket,
@@ -10,11 +11,9 @@ pub enum OperationId {
     Serialization,
     Fragmentation,
     Cipher,
-    // Add more operation types as needed
 }
 
 impl OperationId {
-    // Convert the enum to a string representation
     pub fn as_str(&self) -> &'static str {
         match *self {
             OperationId::SendPacket => "send_packet",
@@ -29,6 +28,10 @@ impl OperationId {
 }
 
 pub struct LogAssistant;
+
+impl LogAssistant {
+
+}
 
 impl LogAssistant {
     fn current_timestamp() -> String {
@@ -78,6 +81,9 @@ impl LogAssistant {
         Self::log_with_level(LogLevel::Error, operation_id, "ERROR", "Cipher failed.");
     }
 
-    // Additional log functions can be added here following the same pattern
+    pub(crate) fn network_icd_packet(pac: NetworkICD) {
+        Self::log_with_level(LogLevel::Info, OperationId::Fragmentation, "INFO", &format!("Network-ICD:{:?}", pac));
+    }
+
 }
 

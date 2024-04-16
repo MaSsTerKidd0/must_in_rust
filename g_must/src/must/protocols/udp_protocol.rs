@@ -40,15 +40,13 @@ impl Protocol for UdpProtocol {
     fn send(&self, receiver: Receiver<Vec<u8>>, target_ip: IpAddr, target_port: u16) {
         let target_socket_addr = SocketAddr::new(target_ip, target_port);
 
-        println!("In Send");
         let socket = self.socket.try_clone().unwrap();
         loop {
             match receiver.recv() {
 
                 Ok(data) => {
-                    println!("Data: {:?}", &data);
                     match socket.send_to(&data, target_socket_addr) {
-                        Ok(_) => println!("Successfully sent data to {}:{}", target_ip, target_port),
+                        Ok(_) => continue, //TODO::write TO LOG
                         Err(e) => eprintln!("Failed to send data to {}: {}", target_socket_addr, e),
                     }
                 },

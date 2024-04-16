@@ -13,9 +13,7 @@ impl ReceiveUnit {
             .snaplen(5000)
             .timeout(14)
             .open().unwrap();
-        //let mut cap: Capture<Active> = device.clone().open().unwrap();
-        //println!("listening on {:?}", device.desc.clone().unwrap());
-        //cap.setnonblock().unwrap();
+
 
         while running.load(Ordering::SeqCst){
             match cap.next_packet() {

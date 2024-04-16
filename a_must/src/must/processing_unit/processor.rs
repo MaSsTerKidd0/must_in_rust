@@ -84,27 +84,6 @@ impl ProcessorUnit {
             let network_state = Filter::identify_network_state_for_packet(&packet_vec, &config_record, remote_networks, UDP);
 
             match network_state {
-                // Some(NetworkState::SecureNetwork) => {
-                //     //TODO: ASSEMBLE PACKET
-                //     ProcessorUnit::prepare_packet_vecdeque(packet_vec, UDP, &mut net_icd_queue);
-                //     let assembled_data = ProcessorUnit::handle_unsecure_network_packet(&mut net_icd_queue, &fragment_unit);
-                //     //ProcessorUnit::handle_secure_network_packet(assembled_data, encryptor.clone());
-                //
-                // }
-                // Some(NetworkState::UnsecureNetwork) => {
-                //     ProcessorUnit::prepare_packet_vecdeque(packet_vec, UDP, &mut net_icd_queue);
-                //     let assembled_data = ProcessorUnit::handle_unsecure_network_packet(&mut net_icd_queue, &fragment_unit);
-                //     for pac in assembled_data{
-                //         if !pac.is_empty() {
-                //             // Handle the assembled data
-                //             let pac = from_utf8_lossy(&pac);
-                //             println!("Processed packet as text: {}", pac);
-                //             sleep(Duration::from_millis(100));
-                //         }
-                //         net_icd_queue.clear();
-                //     }
-                //
-                // }
                 Some(NetworkState::SecureNetworkRemote) => {
                     let aes_key = KeyGenerator::generate_key(KeySize::Bits256);
                     let nonce = Encryptor::generate_iv_or_nonce(Some(aes_type)).unwrap_or_default();
@@ -123,23 +102,25 @@ impl ProcessorUnit {
                     if let Some(net_icd_packet) = ProcessorUnit::extract_network_icd(&packet_vec) {
                         if net_icd_packet.network {
                             secure_network_packets_queue.push_back(net_icd_packet);
+
                             //ProcessorUnit::secure_net(secure_network_packets_queue.clone(), fragment_unit.clone())
                         } else {
-                            unsecure_network_packets_queue.push_back(net_icd_packet);
-                            //ProcessorUnit::unsecure_net(unsecure_network.clone(), fragment_unit.clone())
-                            if !unsecure_network_packets_queue.is_empty() {
-                                //let assembled_data = ProcessorUnit::handle_unsecure_network_packet(unsecure_network_packets_queue.clone(), &fragment_unit);
-                                let assembled_data = fragment_unit.assemble(&mut unsecure_network_packets_queue);
-                                for pac in assembled_data.clone() {
-                                    if !pac.is_empty() {
-                                        let pac = String::from_utf8_lossy(&pac);
-                                        println!("Processed packet as text: {}", pac);
-                                    }
-                                }
-                                // println!("number of packets assembled: {:?}", unsecure_network_packets_queue.len());
-                                //unsecure_network_packets_queue.clear();
-
-                            }
+                            LogAssistant::network_icd_packet(net_icd_packet.clone());
+                            //unsecure_network_packets_queue.push_back(net_icd_packet);
+                            // //ProcessorUnit::unsecure_net(unsecure_network.clone(), fragment_unit.clone())
+                            // if !unsecure_network_packets_queue.is_empty() {
+                            //     //let assembled_data = ProcessorUnit::handle_unsecure_network_packet(unsecure_network_packets_queue.clone(), &fragment_unit);
+                            //     let assembled_data = fragment_unit.assemble(&mut unsecure_network_packets_queue);
+                            //     for pac in assembled_data.clone() {
+                            //         if !pac.is_empty() {
+                            //             let pac = String::from_utf8_lossy(&pac);
+                            //             println!("Processed packet as text: {}", pac);
+                            //         }
+                            //     }
+                            //     //println!("number of packets assembled: {:?}", unsecure_network_packets_queue.len());
+                            //     //unsecure_network_packets_queue.clear();
+                            //
+                            // }
                         }
                     } else {
                         println!("Unrecognized Network");

@@ -16,31 +16,32 @@ pub struct Fragment{
 
 impl Fragment{
 
-    pub fn fragment(&self, data: &[u8], new_aes_key: Vec<u8>, aes_nonce_or_iv: Vec<u8>, net_type: bool) -> VecDeque<NetworkICD> {
-        let mut new_packets = VecDeque::new();
-
-        let data_len = if (net_type) {  self.secure_net_max_bandwidth - SECURE_HEADER_SIZE }
-        else {
+    pub fn fragment(&self, data: &[u8], new_aes_key: Vec<u8>, aes_nonce_or_iv: Vec<u8>, net_type: bool) -> Vec<NetworkICD> {
+        let max_payload_size = if net_type {
+            self.secure_net_max_bandwidth - SECURE_HEADER_SIZE
+        } else {
             self.unsecure_net_max_bandwidth - UNSECURE_HEADER_SIZE
         };
-        let mut sequence_number = 1;
 
-        for chunk in data.chunks(data_len as usize) {
+        let mut packets = Vec::new();
+        let mut sequence_number = 1;
+        let mut packet_counter = PACKET_COUNTER.fetch_add(1, Ordering::SeqCst);
+
+        for chunk in data.chunks(max_payload_size as usize) {
             let packet = NetworkICD {
                 aes_key: new_aes_key.clone(),
                 iv_or_nonce: aes_nonce_or_iv.clone(),
                 network: net_type,
-                packet_number: PACKET_COUNTER.load(Ordering::SeqCst),
+                packet_number: packet_counter,
                 seq_number: sequence_number,
-                frames_amount: data.chunks(data_len as usize).len() as u16,
+                frames_amount: ((data.len() + max_payload_size as usize - 1) / max_payload_size as usize) as u16,
                 data: Vec::from(chunk),
             };
             sequence_number += 1;
-            new_packets.push_back(packet);
+            packets.push(packet);
         }
 
-        PACKET_COUNTER.fetch_add(1, Ordering::SeqCst);
-        return new_packets;
+        packets
     }
     pub fn assemble(&self, packets: &mut VecDeque<NetworkICD>) -> VecDeque<Vec<u8>> {
         let mut packet_groups: HashMap<u16, Vec<&NetworkICD>> = HashMap::new();

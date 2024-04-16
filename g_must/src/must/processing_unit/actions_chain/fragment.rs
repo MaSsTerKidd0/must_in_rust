@@ -3,7 +3,7 @@ use crate::must::network::network_icd::NetworkICD;
 use std::collections::{HashMap, VecDeque};
 use serde::{Deserialize, Serialize};
 
-const SECURE_HEADER_SIZE: u16 = 32+12+5+2;
+const SECURE_HEADER_SIZE: u16 = 55;
 const UNSECURE_HEADER_SIZE: u16 = 7;
 
 //TODO: add consts to represent the vals len of the network ICD in order to prevent magic numbersW

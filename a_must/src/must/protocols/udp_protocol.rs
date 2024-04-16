@@ -40,7 +40,6 @@ impl Protocol for UdpProtocol {
     fn send(&self, receiver: Receiver<Vec<u8>>, target_ip: IpAddr, target_port: u16) {
         let target_socket_addr = SocketAddr::new(target_ip, target_port);
 
-        println!("In Send");
         let socket = self.socket.try_clone().unwrap();
         loop {
             match receiver.recv() {
