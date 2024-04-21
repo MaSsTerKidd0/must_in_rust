@@ -16,6 +16,18 @@ pub struct Fragment{
 
 impl Fragment{
 
+    /// Fragments a data array into smaller packets based on network bandwidth constraints.
+    ///
+    /// This function takes a byte slice and divides it into multiple network packets, each complying with the maximum payload size constraints dictated by whether the network is secure or not. It also assigns each packet a new AES key and an initialization vector or nonce for encryption.
+    ///
+    /// # Parameters:
+    /// - `data`: A byte slice of the original data to be fragmented.
+    /// - `new_aes_key`: A vector containing the new AES encryption key.
+    /// - `aes_nonce_or_iv`: A vector containing the AES initialization vector or nonce.
+    /// - `net_type`: A boolean indicating whether the network is secure (true) or not (false).
+    ///
+    /// # Returns:
+    /// - A vector of `NetworkICD` packets, each containing a portion of the original data along with the encryption parameters and packet metadata.
     pub fn fragment(&self, data: &[u8], new_aes_key: Vec<u8>, aes_nonce_or_iv: Vec<u8>, net_type: bool) -> Vec<NetworkICD> {
         let max_payload_size = if net_type {
             self.secure_net_max_bandwidth - SECURE_HEADER_SIZE
@@ -43,6 +55,16 @@ impl Fragment{
 
         packets
     }
+
+    /// Assembles fragmented packets back into complete data sets.
+    ///
+    /// This function takes a mutable queue of network packets and assembles them back into their original data form. It groups packets by their packet number, ensures all fragments of a group are present, sorts them by sequence number, and then concatenates their data to form the complete byte arrays.
+    ///
+    /// # Parameters:
+    /// - `packets`: A mutable reference to a deque of `NetworkICD` network packets to be assembled.
+    ///
+    /// # Returns:
+    /// - A `VecDeque<Vec<u8>>` where each `Vec<u8>` represents a complete set of data reconstructed from the fragmented packets.
     pub fn assemble(&self, packets: &mut VecDeque<NetworkICD>) -> VecDeque<Vec<u8>> {
         let mut packet_groups: HashMap<u16, Vec<&NetworkICD>> = HashMap::new();
         let mut indices_to_remove: Vec<usize> = Vec::new();

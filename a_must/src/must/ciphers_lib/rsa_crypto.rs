@@ -68,12 +68,32 @@ impl RsaCryptoKeys {
 
         return Ok(());
     }
+
+    /// Encrypts data using RSA with OAEP padding and SHA-256 as the hash function.
+    ///
+    /// This function takes a slice of bytes as input and encrypts it using the RSA public key stored in the object. It uses OAEP padding for security and SHA-256 for the padding's hash function.
+    ///
+    /// # Parameters:
+    /// - `data`: A byte slice of the original data to be encrypted.
+    ///
+    /// # Returns:
+    /// - A `Result<Vec<u8>, Box<dyn Error>>` where `Ok` contains the encrypted data as a vector of bytes, and `Err` contains an error boxed as a dynamic Error.
     pub fn encrypt(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
         let mut rng = OsRng;
         let padding = Oaep::new::<Sha256>();
         self.public_key.encrypt(&mut rng, padding, data)
             .map_err(|e| e.into())
     }
+
+    /// Decrypts ciphertext using RSA with OAEP padding and SHA-256 as the hash function.
+    ///
+    /// This function takes a slice of ciphertext and decrypts it using the RSA private key stored in the object. It uses OAEP padding with SHA-256 to ensure the security and integrity of the decryption process.
+    ///
+    /// # Parameters:
+    /// - `ciphertext`: A byte slice of the encrypted data to be decrypted.
+    ///
+    /// # Returns:
+    /// - A `Result<Vec<u8>, Box<dyn Error>>` where `Ok` contains the decrypted data as a vector of bytes, and `Err` contains an error boxed as a dynamic Error.
     pub fn decrypt(&self, ciphertext: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
         let padding = Oaep::new::<Sha256>();
 

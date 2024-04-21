@@ -68,10 +68,10 @@ impl ProcessorUnit {
             unsecure_net_max_bandwidth: config_record.unsecure_net_bandwidth as u16,
         };
 
-        let fragment_unit = Fragment {
-            secure_net_max_bandwidth: 8 as u16,
-            unsecure_net_max_bandwidth: 16 as u16,
-        };
+        // let fragment_unit = Fragment {
+        //     secure_net_max_bandwidth: 8 as u16,
+        //     unsecure_net_max_bandwidth: 16 as u16,
+        // };
 
         let mut packet_counter: u32 = 0;
         let mut start_time = Instant::now();
@@ -103,24 +103,24 @@ impl ProcessorUnit {
                         if net_icd_packet.network {
                             secure_network_packets_queue.push_back(net_icd_packet);
 
-                            //ProcessorUnit::secure_net(secure_network_packets_queue.clone(), fragment_unit.clone())
+                            ProcessorUnit::secure_net(secure_network_packets_queue.clone(), fragment_unit.clone())
                         } else {
                             LogAssistant::network_icd_packet(net_icd_packet.clone());
-                            //unsecure_network_packets_queue.push_back(net_icd_packet);
-                            // //ProcessorUnit::unsecure_net(unsecure_network.clone(), fragment_unit.clone())
-                            // if !unsecure_network_packets_queue.is_empty() {
-                            //     //let assembled_data = ProcessorUnit::handle_unsecure_network_packet(unsecure_network_packets_queue.clone(), &fragment_unit);
-                            //     let assembled_data = fragment_unit.assemble(&mut unsecure_network_packets_queue);
-                            //     for pac in assembled_data.clone() {
-                            //         if !pac.is_empty() {
-                            //             let pac = String::from_utf8_lossy(&pac);
-                            //             println!("Processed packet as text: {}", pac);
-                            //         }
-                            //     }
-                            //     //println!("number of packets assembled: {:?}", unsecure_network_packets_queue.len());
-                            //     //unsecure_network_packets_queue.clear();
-                            //
-                            // }
+                            unsecure_network_packets_queue.push_back(net_icd_packet);
+                            //ProcessorUnit::unsecure_net(unsecure_network.clone(), fragment_unit.clone())
+                            if !unsecure_network_packets_queue.is_empty() {
+                                //let assembled_data = ProcessorUnit::handle_unsecure_network_packet(unsecure_network_packets_queue.clone(), &fragment_unit);
+                                let assembled_data = fragment_unit.assemble(&mut unsecure_network_packets_queue);
+                                for pac in assembled_data.clone() {
+                                    if !pac.is_empty() {
+                                        let pac = String::from_utf8_lossy(&pac);
+                                        println!("Processed packet as text: {}", pac);
+                                    }
+                                }
+                                //println!("number of packets assembled: {:?}", unsecure_network_packets_queue.len());
+                                //unsecure_network_packets_queue.clear();
+
+                            }
                         }
                     } else {
                         println!("Unrecognized Network");
@@ -158,7 +158,7 @@ impl ProcessorUnit {
         }
     }
 
-
+    // TODO: change so the encryption will encrypt everthing
     fn encrypt_packet_payload(packet_vec: &Vec<u8>, aes_key: Vec<u8>, nonce: Vec<u8>, encryptor: Encryptor) -> Option<Vec<u8>> {
         ProcessorUnit::extract_payload(packet_vec, UDP)
             .and_then(|payload| encryptor.encrypt_data(&payload, aes_key, &nonce).ok())
