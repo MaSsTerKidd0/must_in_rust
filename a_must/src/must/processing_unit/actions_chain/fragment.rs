@@ -3,8 +3,8 @@ use crate::must::network::network_icd::NetworkICD;
 use std::collections::{HashMap, VecDeque};
 use serde::{Deserialize, Serialize};
 
-const SECURE_HEADER_SIZE: u16 = 32+12+5;
-const UNSECURE_HEADER_SIZE: u16 = 5;
+const SECURE_HEADER_SIZE: u16 = 51;
+const UNSECURE_HEADER_SIZE: u16 = 7;
 static PACKET_COUNTER: AtomicU16 = AtomicU16::new(1);
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
@@ -41,13 +41,13 @@ impl Fragment{
 
         for chunk in data.chunks(max_payload_size as usize) {
             let packet = NetworkICD {
-                aes_key: new_aes_key.clone(),
-                iv_or_nonce: aes_nonce_or_iv.clone(),
-                network: net_type,
-                packet_number: packet_counter,
-                seq_number: sequence_number,
-                frames_amount: ((data.len() + max_payload_size as usize - 1) / max_payload_size as usize) as u16,
-                data: Vec::from(chunk),
+                aes_key: new_aes_key.clone(),//32bytes
+                iv_or_nonce: aes_nonce_or_iv.clone(),// 12 or 16 bytes
+                network: net_type, // 1 byte
+                packet_number: packet_counter,//2bytes
+                seq_number: sequence_number,//2bytes
+                frames_amount: ((data.len() + max_payload_size as usize - 1) / max_payload_size as usize) as u16,//2 bytes
+                data: Vec::from(chunk),//rest
             };
             sequence_number += 1;
             packets.push(packet);

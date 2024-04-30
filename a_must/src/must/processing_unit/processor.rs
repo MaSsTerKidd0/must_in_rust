@@ -68,10 +68,10 @@ impl ProcessorUnit {
             unsecure_net_max_bandwidth: config_record.unsecure_net_bandwidth as u16,
         };
 
-        // let fragment_unit = Fragment {
-        //     secure_net_max_bandwidth: 8 as u16,
-        //     unsecure_net_max_bandwidth: 16 as u16,
-        // };
+        let fragment_unit = Fragment {
+            secure_net_max_bandwidth: 80 as u16,
+            unsecure_net_max_bandwidth: 16 as u16,
+        };
 
         let mut packet_counter: u32 = 0;
         let mut start_time = Instant::now();
@@ -102,8 +102,11 @@ impl ProcessorUnit {
                     if let Some(net_icd_packet) = ProcessorUnit::extract_network_icd(&packet_vec) {
                         if net_icd_packet.network {
                             secure_network_packets_queue.push_back(net_icd_packet);
+                            ProcessorUnit::handle_secure_network_packet(std::mem::take(&mut secure_network_packets_queue), encryptor.clone());
+                            //ProcessorUnit::secure_net(secure_network_packets_queue.clone(), fragment_unit.clone())
+                            let assembled_data = fragment_unit.assemble(&mut secure_network_packets_queue);
+                            // Uncomment and modify the following line as needed for secure packet processing
 
-                            ProcessorUnit::secure_net(secure_network_packets_queue.clone(), fragment_unit.clone())
                         } else {
                             LogAssistant::network_icd_packet(net_icd_packet.clone());
                             unsecure_network_packets_queue.push_back(net_icd_packet);
@@ -117,9 +120,6 @@ impl ProcessorUnit {
                                         println!("Processed packet as text: {}", pac);
                                     }
                                 }
-                                //println!("number of packets assembled: {:?}", unsecure_network_packets_queue.len());
-                                //unsecure_network_packets_queue.clear();
-
                             }
                         }
                     } else {
@@ -233,23 +233,34 @@ impl ProcessorUnit {
         }
     }
 
-    fn handle_secure_network_packet(packet: Vec<u8>, encryptor: Encryptor) -> Option<Vec<u8>> {
-        match ProcessorUnit::extract_network_icd(&packet) {
-            Some(net_icd_packet) => {
-                let aes_current_key = &net_icd_packet.aes_key;
-                let encrypted_aes_data = &net_icd_packet.data;
-                let aes_nonce_or_iv = &net_icd_packet.iv_or_nonce;
-                let decrypted_aes_data = ProcessorUnit::decrypt_aes_payload(encrypted_aes_data, aes_current_key, aes_nonce_or_iv, encryptor);
-                println!("Decrypted Data: {:?}", decrypted_aes_data);
-                Some(Vec::new()) // Assuming you'll replace this with actual logic to return meaningful data
-            }
-            None => {
-                eprintln!("Error processing secure network packet");
-                None
+    fn handle_secure_network_packet(mut packets: VecDeque<NetworkICD>, encryptor: Encryptor) -> Option<Vec<u8>> {
+        let mut result = None;
+
+        while let Some(net_icd_packet) = packets.pop_front() {
+            let aes_current_key = &net_icd_packet.aes_key;
+            let encrypted_aes_data = &net_icd_packet.data;
+            let aes_nonce_or_iv = &net_icd_packet.iv_or_nonce;
+
+            let decrypted_aes_data = ProcessorUnit::decrypt_aes_payload(
+                encrypted_aes_data,
+                aes_current_key,
+                aes_nonce_or_iv,
+                encryptor.clone()
+            );
+
+            println!("Decrypted Data: {:?}", decrypted_aes_data);
+
+            // Assuming you'll replace this with actual logic to return meaningful data
+            result = Some(Vec::new());
+
+            // If you want to return after processing the first packet, break the loop
+            if result.is_some() {
+                break;
             }
         }
-    }
 
+        result
+    }
     fn handle_unsecure_network_packet(mut net_icd_queue: VecDeque<NetworkICD>, fragment: &Fragment) -> VecDeque<Vec<u8>> {
         if net_icd_queue.len() >= 1 {
            fragment.assemble(&mut net_icd_queue)

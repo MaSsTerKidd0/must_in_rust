@@ -176,36 +176,35 @@ fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16])
     return (key, nonce_bytes);
 }
 
+/*#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "actix_web=debug");
+    env_logger::init();
 
-// #[actix_web::main]
-// async fn main() -> std::io::Result<()> {
-//     std::env::set_var("RUST_LOG", "actix_web=debug");
-//     env_logger::init();
-//
-//     HttpServer::new(move || {
-//         let cors = Cors::default()
-//             .allowed_origin_fn(|origin, _req_head| {
-//                 true
-//             })
-//             .allowed_methods(vec!["GET", "POST", "OPTIONS"])
-//             .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
-//             .max_age(3600);
-//         App::new()
-//             .wrap(Logger::default())
-//             .wrap(cors)
-//             .route("/config", web::get().to(protected_route))
-//             .configure(handlers::config)
-//             .configure(handlers::dashboard)
-//             .configure(handlers::user_routes)
-//             .service(handlers::login)
-//             .service(handlers::rsa)
-//
-//
-//     })
-//         .bind("127.0.0.1:8080")?
-//         .run()
-//         .await
-// }
+    HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin_fn(|origin, _req_head| {
+                true
+            })
+            .allowed_methods(vec!["GET", "POST", "OPTIONS"])
+            .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
+            .max_age(3600);
+        App::new()
+            .wrap(Logger::default())
+            .wrap(cors)
+            .route("/config", web::get().to(protected_route))
+            .configure(handlers::config)
+            .configure(handlers::dashboard)
+            .configure(handlers::user_routes)
+            .service(handlers::login)
+            .service(handlers::rsa)
+
+
+    })
+        .bind("127.0.0.1:8080")?
+        .run()
+        .await
+}*/
 
 // #[tokio::main]
 // async fn main() {
