@@ -24,6 +24,9 @@ use actix_web::{web, App, HttpServer, middleware::Logger, HttpResponse, middlewa
 use actix_cors::Cors;
 use actix_web::http::header;
 use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
+use crate::must::ciphers_lib::rsa_crypto::{RsaCryptoKeys, RsaKeySize};
+use crate::must::log_handler::LOG_HANDLER;
+use crate::must::mongo_db_handler::get_mongo_handler;
 use crate::must::network::remote_networks::NetworkConfig;
 use crate::must::processing_unit::actions_chain::filter::Protocol::UDP;
 use crate::must::processing_unit::processor::ProcessorUnit;
@@ -32,17 +35,19 @@ use crate::must::receive_unit::receive::ReceiveUnit;
 use crate::must::send_unit::send::SendUnit;
 use crate::must::web_api::handlers;
 use crate::must::web_api::handlers::config_handler::find_config_by_name;
-use crate::must::web_api::middlewares::{protected_route};
+use crate::must::web_api::middlewares::{protected_route, Route};
+use crate::must::web_api::models::user_record::Role::User;
+use crate::must::web_api::models::user_record::UserRecord;
 
 
 const LOCAL_MUST_IP: &str = "0.0.0.0";
 const LOCAL_MUST_PORT: u16 = 0;//next available port
 
-fn main(){
+fn must(){
     let configuration_name = "Save18";
     let config = find_config_by_name("configurations.json", configuration_name).unwrap().unwrap();
 
-    //RsaCryptoKeys::generate(RsaKeySize::Bits2048);
+    RsaCryptoKeys::generate(RsaKeySize::Bits2048).expect("TODO: panic message");
     let networks = load_remote_network().unwrap();
 
     let running = Arc::new(AtomicBool::new(true));
@@ -176,11 +181,11 @@ fn generate_key_and_nonce() -> (Vec<u8>, [u8; 16])
     return (key, nonce_bytes);
 }
 
-/*#[actix_web::main]
+#[actix_web::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=debug");
     env_logger::init();
-
+    thread::spawn(must);
     HttpServer::new(move || {
         let cors = Cors::default()
             .allowed_origin_fn(|origin, _req_head| {
@@ -192,33 +197,63 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(Logger::default())
             .wrap(cors)
-            .route("/config", web::get().to(protected_route))
+            .route("/config", web::get().to(|req| protected_route(req, Route::Config)))
+            .route("/HR", web::get().to(|req| protected_route(req, Route::HR)))
+            .route("/other", web::get().to(|req| protected_route(req, Route::Other)))
             .configure(handlers::config)
             .configure(handlers::dashboard)
             .configure(handlers::user_routes)
             .service(handlers::login)
             .service(handlers::rsa)
-
-
     })
         .bind("127.0.0.1:8080")?
         .run()
         .await
-}*/
+}
 
+
+// fn main() {
+//     let log_handler = &LOG_HANDLER.lock().unwrap();
+//
+// // Log an info message to the incomingSecure.log file
+//     log_handler.info(&log_handler.incoming_secure_log_path, "This is an info message");
+//
+// // Log a warning message to the outgoingUnsecure.log file
+//     log_handler.warning(&log_handler.outgoing_unsecure_log_path, "This is a warning message");
+// }
+
+// Use Tokio's runtime to handle asynchronous tasks
 // #[tokio::main]
 // async fn main() {
-//
+//     // Initialize the MongoDB handler
 //     let mongo_handler = get_mongo_handler().await.expect("Failed to initialize MongoDB handler.");
 //
+//     // Generate a list of realistic usernames and passwords
+//     let users_data = vec![
+//         ("alice_smith", "secureP@ss123"),
+//         ("bob_johnson", "b0bSecure!789"),
+//         ("carol_white", "carol98#2024"),
+//         ("dave_brown", "d4veTopSec!ret"),
+//         ("eve_martin", "eve!SafePass456"),
+//         ("frank_harris", "frankPass!2023"),
+//         ("grace_taylor", "grace1234@safe"),
+//         ("henry_moore", "henrySecure!2024"),
+//         ("isabel_clark", "isabel%Safe789"),
+//         ("jake_walker", "jake456&Pass"),
+//     ];
 //
+//     // Iterate over the users_data to create and insert new user records
+//     for (username, password) in users_data {
 //         let new_user = UserRecord {
-//             id: None,
-//             username : "rmbo56".to_string(),
-//             password: "turtle".to_string(),
-//             role: PermittedUser,
-//             created_at: chrono::Utc::now().format("%Y-%m-%d").to_string(),
+//             id: None, // No ID is specified; MongoDB will generate one automatically
+//             username: username.to_string(), // Convert the username to a String
+//             password: password.to_string(), // Convert the password to a String
+//             role: User, // Assign the role as "User"
+//             created_at: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(), // Get the current UTC date and time
 //         };
 //
+//         // Insert the new user record into MongoDB
 //         mongo_handler.insert_user(new_user).await.expect("Failed to insert new user");
+//     }
 // }
+

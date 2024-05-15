@@ -40,7 +40,7 @@ impl LogAssistant {
     fn log_with_level(level: LogLevel, operation_id: OperationId, status: &str, message: &str) {
         let timestamped_message = format!("{} [{}] [{}] {}", Self::current_timestamp(), operation_id.as_str(), status, message);
         let log_handler = LOG_HANDLER.lock().unwrap();
-        log_handler.log(level, &timestamped_message);
+        //log_handler.log(level, &timestamped_message);
     }
 
     pub fn generic_error(operation_id: OperationId) {

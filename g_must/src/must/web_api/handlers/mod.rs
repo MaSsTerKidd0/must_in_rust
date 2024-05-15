@@ -10,3 +10,5 @@ pub use dashboard_handler::dashboard;
 pub use user_handler::user_routes;
 pub use login_handler::login;
 pub use rsa_public_key_handler::get_rsa_public_key as rsa;
+
+pub use dashboard_handler::GLOBAL_STATUS;

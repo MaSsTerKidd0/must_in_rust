@@ -1,0 +1,6 @@
+INFO: 2024-04-30 09:25:29 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1
+INFO: 2024-04-30 09:30:57 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 3000
+INFO: 2024-04-30 09:47:39 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1
+INFO: 2024-04-30 09:53:44 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 2000
+INFO: 2024-04-30 10:00:12 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1
+INFO: 2024-04-30 10:09:22 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1000

@@ -3,6 +3,7 @@ use actix_web::{get, HttpResponse, Responder, web};
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use actix_web::http::header::IfRange::Date;
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use serde::{Deserialize, Serialize};
@@ -14,19 +15,41 @@ struct LogEntry {
     packet_count: u32,
 }
 
+#[derive(Serialize, Clone)]
+pub struct ConnectionStatusResponse {
+    pub connection_established: bool,
+    pub data_transmitted: bool,
+}
+
+impl Default for ConnectionStatusResponse {
+    fn default() -> Self {
+        Self {
+            connection_established: true,
+            data_transmitted: true,
+        }
+    }
+}
+
+lazy_static::lazy_static! {
+    pub static ref GLOBAL_STATUS: Arc<Mutex<ConnectionStatusResponse>> = Arc::new(Mutex::new(ConnectionStatusResponse::default()));
+}
 
 pub fn dashboard(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/dashboard")
             .service(update_live_chart)
+            .service(get_connection_status)
+            .service(get_incoming_unsecure_data)
+            .service(get_outgoing_unsecure_data)
+            .service(get_incoming_secure_data)
+            .service(get_outgoing_secure_data),
     );
 }
 
 
-#[get("/dashboard")]
+#[get("/")]
 async fn get_dashboard(claims: web::ReqData<Claims>) -> impl Responder {
     let role = claims.role.as_str();
-
     (format!("Welcome to the dashboard page, {}!", role), actix_web::http::StatusCode::OK)
 }
 
@@ -46,8 +69,35 @@ pub async fn update_live_chart() -> impl Responder {
     }
 }
 
-fn read_log_file<P>(filename: P) -> io::Result<Vec<LogEntry>>
-    where P: AsRef<Path> {
+#[get("/incomingUnsecure")]
+pub async fn get_incoming_unsecure_data() -> impl Responder {
+    // Implement logic to fetch incoming unsecure data
+    // and return it as a JSON response
+    HttpResponse::Ok()
+}
+
+#[get("/outgoingUnsecure.log")]
+pub async fn get_outgoing_unsecure_data() -> impl Responder {
+    // Implement logic to fetch outgoing unsecure data
+    // and return it as a JSON response
+    HttpResponse::Ok()
+}
+
+#[get("/incomingSecure.log")]
+pub async fn get_incoming_secure_data() -> impl Responder {
+    // Implement logic to fetch incoming secure data
+    // and return it as a JSON response
+    HttpResponse::Ok()
+}
+
+#[get("/outgoingSecure.log")]
+pub async fn get_outgoing_secure_data() -> impl Responder {
+    // Implement logic to fetch outgoing secure data
+    // and return it as a JSON response
+    HttpResponse::Ok()
+}
+
+fn read_log_file<P>(filename: P) -> io::Result<Vec<LogEntry>> where P: AsRef<Path> {
     let file = File::open(filename)?;
     let reader = io::BufReader::new(file);
 
@@ -73,4 +123,11 @@ fn read_log_file<P>(filename: P) -> io::Result<Vec<LogEntry>>
     }
 
     Ok(log_entries)
+}
+
+
+#[get("/connectionStatus")]
+async fn get_connection_status() -> impl Responder {
+    let status = GLOBAL_STATUS.lock().unwrap().clone();
+    HttpResponse::Ok().json(status)
 }

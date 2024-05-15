@@ -22,7 +22,7 @@ impl MongoDBHandler {
     }
 
     // Gets a collection
-    fn collection<T>(&self, name: &str) -> Collection<T> {
+    pub(crate) fn collection<T>(&self, name: &str) -> Collection<T> {
         self.db.collection::<T>(name)
     }
 
@@ -57,6 +57,14 @@ impl MongoDBHandler {
     pub async fn get_all_users(&self) -> mongodb::error::Result<Vec<UserRecord>> {
         let users_collection = self.collection::<UserRecord>("Users");
         let cursor = users_collection.find(None, None).await?;
+        let users: Vec<UserRecord> = cursor.try_collect().await?;
+        Ok(users)
+    }
+
+    pub async fn get_all_users_except_admins(&self) -> mongodb::error::Result<Vec<UserRecord>> {
+        let users_collection = self.collection::<UserRecord>("Users");
+        let filter = doc! { "role": { "$ne": "Admin" } };
+        let cursor = users_collection.find(filter, None).await?;
         let users: Vec<UserRecord> = cursor.try_collect().await?;
         Ok(users)
     }

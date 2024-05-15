@@ -46,12 +46,7 @@ impl Protocol for UdpProtocol {
 
                 Ok(data) => {
                     //println!("Data: {:?}", &data);
-                    match socket.send_to(&data, target_socket_addr) {
-                        Ok(_) => println!("Successfully sent data to {}:{}", target_ip, target_port),
-                        Err(e) => eprintln!("Failed to send data to {}: {}", target_socket_addr, e),
-
-                        //TODO: convert this to write for the log file
-                    }
+                     socket.send_to(&data, target_socket_addr).expect("TODO: panic message");
                 },
                 Err(e) => {
                     eprintln!("Failed to receive data from channel: {}", e);

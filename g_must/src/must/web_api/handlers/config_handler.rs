@@ -16,7 +16,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 }
 
 
-#[get("/config")]
+#[get("/config/")]
 async fn get_config(claims: web::ReqData<Claims>) -> impl Responder {
     let role = claims.role.as_str();
     (format!("Welcome to the config page, {}!", role), actix_web::http::StatusCode::OK)
