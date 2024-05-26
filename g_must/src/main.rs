@@ -25,6 +25,9 @@ use actix_cors::Cors;
 use actix_web::http::header;
 use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
 use crate::must::ciphers_lib::rsa_crypto::{RsaCryptoKeys, RsaKeySize};
+use crate::must::compressions::encode_trait::EncodeTrait;
+use crate::must::compressions::gzip::GzipEncode;
+use crate::must::compressions::rle_encode::RleEncoder;
 use crate::must::log_handler::LOG_HANDLER;
 use crate::must::mongo_db_handler::get_mongo_handler;
 use crate::must::network::remote_networks::NetworkConfig;
@@ -116,19 +119,6 @@ fn must(){
 }
 
 
-
-
-
-// fn main() -> std::io::Result<()> {
-//     let socket = UdpSocket::bind("0.0.0.0:0")?; // Bind to any available port on all interfaces
-//     let target = "192.168.100.9:8081";
-//
-//     let message = b"Hello, UDP from 192.168.100.8!";
-//     socket.send_to(message, target)?;
-//
-//     println!("Sent message to {}", target);
-//     Ok(())
-// }
 fn load_remote_network() -> Result<NetworkConfig, Box<dyn std::error::Error>> {
     let remote_networks_json_file_path = "remote_networks.json";
     let network_config: NetworkConfig = JsonHandler::load(remote_networks_json_file_path)?;
@@ -211,49 +201,17 @@ async fn main() -> std::io::Result<()> {
         .await
 }
 
-
 // fn main() {
-//     let log_handler = &LOG_HANDLER.lock().unwrap();
+//     let data = b"This is a sample audio data that will be compressed and decompressed in real-time.";
 //
-// // Log an info message to the incomingSecure.log file
-//     log_handler.info(&log_handler.incoming_secure_log_path, "This is an info message");
+//     // Compress audio
+//     let compressed_data = RleEncoder::compress(data).expect("Compression failed");
+//     println!("Compressed data: {:?}", compressed_data);
 //
-// // Log a warning message to the outgoingUnsecure.log file
-//     log_handler.warning(&log_handler.outgoing_unsecure_log_path, "This is a warning message");
+//     // Decompress audio
+//     let decompressed_data = RleEncoder::decompress(&compressed_data).expect("Decompression failed");
+//     println!("Decompressed data: {:?}", decompressed_data);
+//
+//     let result = String::from_utf8(decompressed_data).expect("Invalid UTF-8");
+//     println!("{}", result);
 // }
-
-// Use Tokio's runtime to handle asynchronous tasks
-// #[tokio::main]
-// async fn main() {
-//     // Initialize the MongoDB handler
-//     let mongo_handler = get_mongo_handler().await.expect("Failed to initialize MongoDB handler.");
-//
-//     // Generate a list of realistic usernames and passwords
-//     let users_data = vec![
-//         ("alice_smith", "secureP@ss123"),
-//         ("bob_johnson", "b0bSecure!789"),
-//         ("carol_white", "carol98#2024"),
-//         ("dave_brown", "d4veTopSec!ret"),
-//         ("eve_martin", "eve!SafePass456"),
-//         ("frank_harris", "frankPass!2023"),
-//         ("grace_taylor", "grace1234@safe"),
-//         ("henry_moore", "henrySecure!2024"),
-//         ("isabel_clark", "isabel%Safe789"),
-//         ("jake_walker", "jake456&Pass"),
-//     ];
-//
-//     // Iterate over the users_data to create and insert new user records
-//     for (username, password) in users_data {
-//         let new_user = UserRecord {
-//             id: None, // No ID is specified; MongoDB will generate one automatically
-//             username: username.to_string(), // Convert the username to a String
-//             password: password.to_string(), // Convert the password to a String
-//             role: User, // Assign the role as "User"
-//             created_at: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(), // Get the current UTC date and time
-//         };
-//
-//         // Insert the new user record into MongoDB
-//         mongo_handler.insert_user(new_user).await.expect("Failed to insert new user");
-//     }
-// }
-

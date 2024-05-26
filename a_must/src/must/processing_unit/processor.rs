@@ -8,6 +8,8 @@ use rsa::sha2::Sha256;
 use crate::must::ciphers_lib::AesType;
 use crate::must::ciphers_lib::key_generator::{KeyGenerator, KeySize};
 use crate::must::ciphers_lib::rsa_crypto::RsaCryptoKeys;
+use crate::must::compressions::encode_trait::EncodeTrait;
+use crate::must::compressions::rle_encode::RleEncoder;
 use crate::must::log_assistant::{LogAssistant, OperationId};
 use crate::must::network::network_icd::NetworkICD;
 use crate::must::network::remote_networks::NetworkConfig;
@@ -88,12 +90,16 @@ impl ProcessorUnit {
                     Self::send_packets(packets_to_send.iter().filter_map(|packet| packet.to_bytes().ok()).collect(), &processed_data_tx, &mut packet_counter, &mut start_time);
                 }
                 None => {
-                    if let Some(net_icd_packet) = Self::extract_network_icd(&packet_vec) {
+
+                    if let Some(mut net_icd_packet) = Self::extract_network_icd(&packet_vec) {
                         if net_icd_packet.network {
                             secure_network_packets_queue.push_back(net_icd_packet);
-                            Self::handle_secure_network_packet(&mut secure_network_packets_queue, &encryptor);
+                            ProcessorUnit::handle_secure_network_packet(&mut secure_network_packets_queue, encryptor.clone());
+                            let assembled_data = fragment_unit.assemble(&mut secure_network_packets_queue);
+
                         } else {
                             LogAssistant::network_icd_packet(net_icd_packet.clone());
+                            net_icd_packet.data = RleEncoder::decompress(net_icd_packet.data.as_slice()).unwrap();
                             unsecure_network_packets_queue.push_back(net_icd_packet);
                             if !unsecure_network_packets_queue.is_empty() {
                                 let assembled_data = fragment_unit.assemble(&mut unsecure_network_packets_queue);
@@ -134,11 +140,20 @@ impl ProcessorUnit {
             }
             None => Vec::new(),
         };
-
         let fragmented_packets = fragment_unit.fragment(&encrypted_payload, encrypted_aes_key, nonce, true);
         fragmented_packets.iter().filter_map(|packet| packet.to_bytes().ok()).collect()
     }
-
+    fn handle_decompression(packets: VecDeque<Vec<u8>>, encryptor: Encryptor) -> Vec<NetworkICD> {
+        let mut decompressed_packets = Vec::new();
+        for packet in packets {
+            if let Some(decompressed) = RleEncoder::decompress(&packet) {
+                if let Ok(net_icd_packet) = NetworkICD::from_bytes(&decompressed) {
+                    decompressed_packets.push(net_icd_packet);
+                }
+            }
+        }
+        decompressed_packets
+    }
     fn send_packets(packets: Vec<Vec<u8>>, processed_data_tx: &Sender<Vec<u8>>, packet_counter: &mut u32, start_time: &mut Instant) {
         for packet in packets {
             if processed_data_tx.send(packet).is_err() {
@@ -186,28 +201,28 @@ impl ProcessorUnit {
         }
     }
 
-    fn handle_secure_network_packet(packets: &mut VecDeque<NetworkICD>, encryptor: &Encryptor) -> Option<Vec<u8>> {
-        let mut result = None;
 
-        while let Some(net_icd_packet) = packets.pop_front() {
-            let aes_key = &net_icd_packet.aes_key;
-            let encrypted_data = &net_icd_packet.data;
-            let nonce = &net_icd_packet.iv_or_nonce;
+    fn handle_secure_network_packet(packets: &mut VecDeque<NetworkICD>, encryptor: Encryptor) -> Vec<Vec<u8>> {
+        let mut decrypted_data: Vec<Vec<u8>> = Vec::new();
 
-            let decrypted_aes_data = Self::decrypt_aes_payload(encrypted_data, aes_key, nonce, encryptor.clone());
-            if let Some(data) = decrypted_aes_data.clone() {
-                println!("Decrypted Data: {:?}", String::from_utf8(data));
-            }
-
-            result = Some(Vec::new());
-
-            // If you want to return after processing the first packet, break the loop
-            if result.is_some() {
-                break;
+        for packet in packets {
+            if !packet.data.is_empty() {
+                let aes_current_key = &packet.aes_key;
+                let encrypted_aes_data = &packet.data;
+                let aes_nonce_or_iv = &packet.iv_or_nonce;
+                if let Some(data) = ProcessorUnit::decrypt_aes_payload(
+                    encrypted_aes_data,
+                    aes_current_key,
+                    aes_nonce_or_iv,
+                    encryptor.clone(),
+                ) {
+                    if let Some(decompressed) = RleEncoder::decompress(&data) {
+                        println!("Decompressed: {:?}", String::from_utf8(decompressed));
+                    }
+                }
             }
         }
-
-        result
+        decrypted_data
     }
 
     fn handle_unsecure_network_packet(mut net_icd_queue: VecDeque<NetworkICD>, fragment: &Fragment) -> VecDeque<Vec<u8>> {

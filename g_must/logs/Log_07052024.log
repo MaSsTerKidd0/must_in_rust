@@ -1,9 +1,0 @@
-INFO: 2024-05-07 10:12:34 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1
-INFO: 2024-05-07 10:13:21 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1000
-INFO: 2024-05-07 10:13:27 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1000
-INFO: 2024-05-07 10:13:31 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1000
-INFO: 2024-05-07 10:13:32 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1000
-INFO: 2024-05-07 10:16:01 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1000
-INFO: 2024-05-07 10:16:02 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1000
-INFO: 2024-05-07 10:16:04 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1000
-INFO: 2024-05-07 10:16:13 [send_packet] [SUCCESS] Successfully transmitted packets, packet_count: 1000

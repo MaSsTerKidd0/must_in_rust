@@ -15,8 +15,6 @@ num_enum = "0.7.2"
 
 #Handling Compressions
 rle = "0.2.0"
-lzw-compress = "1.0.0"
-simple_huffman = "0.1.3"
 
 #Handling jsons
 json = "0.12.4"
@@ -40,7 +38,6 @@ flate2 = "1.0.28"
 bincode = "1.3.3"
 chrono = "0.4.34"
 lazy_static = "1.4.0"
-
 
 pem = "3.0.3"
 mongodb = "2.8.1"
