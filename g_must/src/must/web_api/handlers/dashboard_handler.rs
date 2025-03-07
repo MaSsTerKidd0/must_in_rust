@@ -1,13 +1,15 @@
 use std::env;
 use actix_web::{get, HttpResponse, Responder, web};
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use actix_web::http::header::IfRange::Date;
-use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
+use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeZone};
 use serde::{Deserialize, Serialize};
+use crate::must::web_api::handlers::config_handler::find_config_by_name;
 use crate::must::web_api::middlewares::Claims;
+use crate::CONFIG_REC;
 
 #[derive(Serialize, Deserialize)]
 struct LogEntry {
@@ -41,7 +43,8 @@ pub fn dashboard(cfg: &mut web::ServiceConfig) {
             .service(get_incoming_unsecure_data)
             .service(get_outgoing_unsecure_data)
             .service(get_incoming_secure_data)
-            .service(get_outgoing_secure_data),
+            .service(get_outgoing_secure_data)
+            .service(get_selected_config),
     );
 }
 
@@ -97,9 +100,22 @@ pub async fn get_outgoing_secure_data() -> impl Responder {
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
-fn read_log_file<P>(filename: P) -> io::Result<Vec<LogEntry>> where P: AsRef<Path> {
+
+
+
+
+use chrono::Duration as ChronoDuration;
+
+
+fn read_log_file<P>(filename: P) -> io::Result<Vec<LogEntry>>
+    where
+        P: AsRef<Path>,
+{
     let file = File::open(filename)?;
-    let reader = io::BufReader::new(file);
+    let reader = BufReader::new(file);
+
+    let current_time = Local::now();
+    let time_threshold = current_time - ChronoDuration::seconds(60);
 
     let mut log_entries = Vec::new();
 
@@ -107,16 +123,22 @@ fn read_log_file<P>(filename: P) -> io::Result<Vec<LogEntry>> where P: AsRef<Pat
         let line = line?;
         if line.contains("[send_packet] [SUCCESS]") {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 6 {
-                let date_time_str = format!("{} {}", parts[1], parts[2]);
-                if let Ok(naive_datetime) = NaiveDateTime::parse_from_str(&date_time_str, "%Y-%m-%d %H:%M:%S") {
-                    let datetime: DateTime<Local> = Local.from_local_datetime(&naive_datetime).unwrap();
-                    let time = datetime.format("%H:%M:%S").to_string();
+            if parts.len() > 2 {
+                let date_time_str = format!("{} {}", parts[1], parts[2]); // Extracting the timestamp
 
-                    let packet_count_str = parts[parts.len() - 1];
-                    if let Ok(packet_count) = packet_count_str.parse::<u32>() {
-                        log_entries.push(LogEntry { time, packet_count });
+                match NaiveDateTime::parse_from_str(&date_time_str, "%Y-%m-%d %H:%M:%S") {
+                    Ok(naive_datetime) => {
+                        // Assume the parsed datetime is already in the correct local timezone
+                        let datetime = Local.from_local_datetime(&naive_datetime).single().unwrap();
+                        if datetime >= time_threshold && datetime <= current_time {
+                            let time = datetime.format("%H:%M:%S").to_string();
+                            let packet_count_str = line.split("packet_count: ").nth(1).unwrap().trim();
+                            if let Ok(packet_count) = packet_count_str.parse::<u32>() {
+                                log_entries.push(LogEntry { time, packet_count });
+                            }
+                        }
                     }
+                    Err(e) => eprintln!("Failed to parse datetime '{}': {}", date_time_str, e),
                 }
             }
         }
@@ -130,4 +152,14 @@ fn read_log_file<P>(filename: P) -> io::Result<Vec<LogEntry>> where P: AsRef<Pat
 async fn get_connection_status() -> impl Responder {
     let status = GLOBAL_STATUS.lock().unwrap().clone();
     HttpResponse::Ok().json(status)
+}
+
+#[get("/selectedConfig/")]
+async fn get_selected_config() -> impl Responder {
+    let config = find_config_by_name("configurations.json", CONFIG_REC).unwrap();
+
+    match config {
+        Some(config) => HttpResponse::Ok().json(config),
+        None => HttpResponse::NotFound().body("Configuration not found"),
+    }
 }

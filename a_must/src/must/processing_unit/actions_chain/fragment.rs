@@ -28,7 +28,10 @@ impl Fragment{
     ///
     /// # Returns:
     /// - A vector of `NetworkICD` packets, each containing a portion of the original data along with the encryption parameters and packet metadata.
-    pub fn fragment(&self, data: &[u8], new_aes_key: Vec<u8>, aes_nonce_or_iv: Vec<u8>, net_type: bool) -> Vec<NetworkICD> {
+    ///
+    /// # Runtime Complexity:
+    /// - O(n), where `n` is the length of the `data` array.
+        pub fn fragment(&self, data: &[u8], new_aes_key: Vec<u8>, aes_nonce_or_iv: Vec<u8>, net_type: bool) -> Vec<NetworkICD> {
         let max_payload_size = if net_type {
             self.secure_net_max_bandwidth - SECURE_HEADER_SIZE
         } else {
@@ -65,11 +68,14 @@ impl Fragment{
     ///
     /// # Returns:
     /// - A `VecDeque<Vec<u8>>` where each `Vec<u8>` represents a complete set of data reconstructed from the fragmented packets.
+    ///
+    /// # Runtime Complexity:
+    /// - O(m log m), where `m` is the number of packets.
     pub fn assemble(&self, packets: &mut VecDeque<NetworkICD>) -> VecDeque<Vec<u8>> {
         let mut packet_groups: HashMap<u16, Vec<&NetworkICD>> = HashMap::new();
         let mut indices_to_remove: Vec<usize> = Vec::new();
 
-        // Group packets by packet_number, cloning necessary data
+        // Group packets by packet_number, cloning necessary datanpm
         for (i, packet) in packets.iter().enumerate() {
             packet_groups.entry(packet.packet_number).or_insert_with(Vec::new).push(packet);
             if packet_groups[&packet.packet_number].len() == packet.frames_amount as usize {

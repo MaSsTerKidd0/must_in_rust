@@ -36,34 +36,6 @@ pub struct ProcessorUnit;
 impl ProcessorUnit {
     pub(crate) fn process(packet_data_rx: Receiver<Vec<u8>>, processed_data_tx: Sender<Vec<u8>>, config_record: ConfigRecord, remote_networks: &NetworkConfig) {
         let mut received_public_key = None;
-
-
-        // while received_public_key.is_none() {
-        //     processed_data_tx.send(REQUEST_PUBLIC_KEY.as_bytes().to_vec()).expect("Failed to request public key");
-        //     if let Ok(received_message) = packet_data_rx.recv() {
-        //         let received_message = ProcessorUnit::extract_payload(received_message.as_slice(), UDP).unwrap();
-        //
-        //         match handle_key_exchange(received_message, REQUEST_PUBLIC_KEY, KEY_RECEIVED_ACKNOWLEDGMENT) {
-        //             KeyExchangeStatus::RequestReceived => {
-        //                 // Send your public key
-        //                 let my_public_key = RsaCryptoKeys::get_public_key_pem().expect("Failed to get public key PEM");
-        //                 processed_data_tx.send(my_public_key.as_bytes().to_vec()).expect("Failed to send public key PEM");
-        //             }
-        //             KeyExchangeStatus::PublicKeyReceived(public_key) => {
-        //                 received_public_key = Some(public_key.clone());
-        //                 let public_key_pem = public_key.to_pkcs1_pem(LineEnding::LF).expect("Failed to encode public key to PEM");
-        //                 println!("Received Public Key in PEM format:\n{}", public_key_pem);
-        //                 processed_data_tx.send(KEY_RECEIVED_ACKNOWLEDGMENT.as_bytes().to_vec()).expect("Failed to send acknowledgment");
-        //             }
-        //             KeyExchangeStatus::AcknowledgmentReceived => {
-        //                 break;
-        //             }
-        //             KeyExchangeStatus::None => {
-        //             }
-        //         }
-        //     }
-        //     thread::sleep(Duration::from_millis(500));
-        // }
             let aes_type = AesType::from_str(&config_record.aes_type).unwrap();
             let fragment_unit = Fragment {
                 secure_net_max_bandwidth: config_record.secure_net_bandwidth as u16,
@@ -79,6 +51,7 @@ impl ProcessorUnit {
             let mut unsecure_network_packets_queue: VecDeque<NetworkICD> = VecDeque::new();
 
             while let Ok(mut packet_vec) = packet_data_rx.recv() {
+                println!("packet: {:?}", packet_vec);
                 let network_state = Filter::identify_network_state_for_packet(&packet_vec, &config_record, remote_networks, UDP);
                 match network_state {
                     Some(NetworkState::SecureNetworkRemote) => {
@@ -100,19 +73,17 @@ impl ProcessorUnit {
                         ProcessorUnit::send_packets(packets_to_send.iter().filter_map(|packet| packet.to_bytes().ok()).collect(), &processed_data_tx, &mut packet_counter, &mut start_time);
                     }
                     None => {
-                        // Try to convert the payload to NetworkICD and check the network field
-                        if let Some(net_icd_packet) = ProcessorUnit::extract_network_icd(&packet_vec) {
+                        if let Some(mut net_icd_packet) = Self::extract_network_icd(&packet_vec) {
                             if net_icd_packet.network {
                                 secure_network_packets_queue.push_back(net_icd_packet);
-                                //ProcessorUnit::secure_net(secure_network_packets_queue.clone(), fragment_unit.clone())
+                                ProcessorUnit::handle_secure_network_packet(&mut secure_network_packets_queue, encryptor.clone());
                                 let assembled_data = fragment_unit.assemble(&mut secure_network_packets_queue);
-                                ProcessorUnit::handle_secure_network_packet(assembled_data, encryptor.clone());
+
                             } else {
                                 LogAssistant::network_icd_packet(net_icd_packet.clone());
+                                net_icd_packet.data = RleEncoder::decompress(net_icd_packet.data.as_slice()).unwrap();
                                 unsecure_network_packets_queue.push_back(net_icd_packet);
-                                //ProcessorUnit::unsecure_net(unsecure_network.clone(), fragment_unit.clone())
                                 if !unsecure_network_packets_queue.is_empty() {
-                                    //let assembled_data = ProcessorUnit::handle_unsecure_network_packet(unsecure_network_packets_queue.clone(), &fragment_unit);
                                     let assembled_data = fragment_unit.assemble(&mut unsecure_network_packets_queue);
                                     for pac in assembled_data.clone() {
                                         if !pac.is_empty() {
@@ -216,45 +187,27 @@ impl ProcessorUnit {
             }
         }
 
-    fn handle_secure_network_packet(packets: VecDeque<Vec<u8>>, encryptor: Encryptor) -> Option<Vec<u8>> {
-        let mut decompressed_data = Vec::new();
+    fn handle_secure_network_packet(packets: &mut VecDeque<NetworkICD>, encryptor: Encryptor) -> Vec<Vec<u8>> {
+        let mut decrypted_data: Vec<Vec<u8>> = Vec::new();
 
         for packet in packets {
-            match NetworkICD::from_bytes(&packet) {
-                Ok(net_icd_packet) => {
-                    let aes_current_key = &net_icd_packet.aes_key;
-                    let encrypted_aes_data = &net_icd_packet.data;
-                    let aes_nonce_or_iv = &net_icd_packet.iv_or_nonce;
-                    let decrypted_aes_data = ProcessorUnit::decrypt_aes_payload(
-                        encrypted_aes_data,
-                        aes_current_key,
-                        aes_nonce_or_iv,
-                        encryptor.clone(),
-                    );
-
-                    if let Some(data) = decrypted_aes_data {
-                        match RleEncoder::decompress(&data) {
-                            Some(decompressed) => {
-                                //decompressed_data.extend(decompressed);
-                                println!("Decompressed: {:?}", String::from_utf8_lossy(&decompressed));
-                            }
-                            None => {
-                                eprintln!("Error decompressing data");
-                            }
-                        }
+            if !packet.data.is_empty() {
+                let aes_current_key = &packet.aes_key;
+                let encrypted_aes_data = &packet.data;
+                let aes_nonce_or_iv = &packet.iv_or_nonce;
+                if let Some(data) = ProcessorUnit::decrypt_aes_payload(
+                    encrypted_aes_data,
+                    aes_current_key,
+                    aes_nonce_or_iv,
+                    encryptor.clone(),
+                ) {
+                    if let Some(decompressed) = RleEncoder::decompress(&data) {
+                        println!("Decompressed: {:?}", String::from_utf8(decompressed));
                     }
-                }
-                Err(e) => {
-                    eprintln!("Error processing secure network packet: {}", e);
                 }
             }
         }
-
-        if !decompressed_data.is_empty() {
-            Some(decompressed_data)
-        } else {
-            None
-        }
+        decrypted_data
     }
         fn handle_unsecure_network_packet(payload: Vec<u8>, protocol: Protocol) -> Vec<u8> {
             //assemble_packet(&payload, protocol)

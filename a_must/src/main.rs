@@ -98,10 +98,7 @@ fn main(){
     let send_unit_clone = send_unit.clone();
     let unsecure_send = thread::spawn(move || send_unit.send(post_process_receiver,unsecure_net.parse().unwrap(), unsecure_net_port));
 
-    // rsa_exchange_public_keys(&a.socket);
     // Clone the Arc to share send_unit between threads
-
-
     let run_clone = running.clone();
     ctrlc::set_handler(move||{
         run_clone.store(false, Ordering::SeqCst)
@@ -129,36 +126,6 @@ fn main(){
     unsecure_send.join().unwrap();
     process_thread.join().unwrap();
 }
-
-
-
-
-
-// fn check_network_icd() -> Result<(), Box<dyn Error>>{
-//     // Create a sample NetworkICD instance
-//     let sample_icd = NetworkICD {
-//         aes_key: vec![1, 2, 3, 4, 5],
-//         network: true,
-//         packet_number: 123,
-//         seq_number: 456,
-//         data: vec![9, 8, 7, 6, 5],
-//     };
-//
-//     // Serialize the sample_icd to bytes
-//     let serialized_bytes = sample_icd.to_bytes()?;
-//
-//     // Deserialize the bytes back into a NetworkICD instance
-//     let deserialized_icd = NetworkICD::from_bytes(&serialized_bytes)?;
-//
-//     // Print the original and deserialized NetworkICD instances to verify they are the same
-//     println!("Original ICD: {:?}", sample_icd);
-//     println!("Deserialized ICD: {:?}", deserialized_icd);
-//
-//     // Verify that the original and deserialized instances are the same
-//     assert_eq!(sample_icd, deserialized_icd);
-//
-//     Ok(())
-// }
 
 fn load_remote_network() -> Result<NetworkConfig, Box<dyn std::error::Error>> {
     let remote_networks_json_file_path = "remote_networks.json";
@@ -197,69 +164,3 @@ fn device_picker() -> Device {
     }
     return devices.get(choice - 1).unwrap().clone();
 }
-
-// fn check_assemble_packets(packets: VecDeque<NetworkICD>) {
-//     let assemble = Fragment {
-//         first_net_max_bandwidth: 0,
-//         second_net_max_bandwidth: 0,
-//     };
-//
-//     let assembled_packet = assemble.assemble(packets);
-//     match String::from_utf8(assembled_packet) {
-//         Ok(s) => println!("Converted ASCII: {}", s),
-//         Err(e) => println!("Failed to convert: {}", e),
-//     }
-// }
-
-
-
-// #[actix_web::main]
-// async fn main() -> std::io::Result<()> {
-//     std::env::set_var("RUST_LOG", "actix_web=debug");
-//     env_logger::init();
-//
-//     HttpServer::new(move || {
-//         let cors = Cors::default()
-//             .allowed_origin_fn(|origin, _req_head| {
-//                 true
-//             })
-//             .allowed_methods(vec!["GET", "POST", "OPTIONS"])
-//             .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT, header::CONTENT_TYPE])
-//             .max_age(3600);
-//         App::new()
-//             .wrap(Logger::default())
-//             .wrap(cors)
-//             .configure(handlers::config)
-//             .configure(handlers::dashboard)
-//             .service(handlers::login)
-//             .service(handlers::rsa)
-//
-//     })
-//         .bind("127.0.0.1:8080")?
-//         .run()
-//         .await
-// }
-
-// #[tokio::main]
-// async fn main() {
-//     // URI and database name should be specified here
-//     let uri = "mongodb://localhost:27017/";
-//     let db_name = "your_db_name";
-//
-//     // Attempt to get the MongoDBHandler
-//     let mongo_handler = get_mongo_handler().await.expect("Failed to initialize MongoDB handler.");
-//
-//     // Create a new user
-//     let new_user = UserRecord {
-//         id: None, // MongoDB will auto-generate an ObjectId
-//         username: "johndoe".to_string(),
-//         password: "hashed_password".to_string(), // This should be a hashed password
-//         roles: vec!["user".to_string()],
-//         created_at: Utc::now().format("%Y-%m-%d").to_string(),
-//     };
-//
-//
-//     mongo_handler.insert_user(new_user).await.expect("Failed to insert new user");
-//
-//     println!("New user inserted successfully.");
-// }

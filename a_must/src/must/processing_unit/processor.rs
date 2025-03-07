@@ -32,36 +32,7 @@ pub struct ProcessorUnit;
 
 impl ProcessorUnit {
     pub(crate) fn process(packet_data_rx: Receiver<Vec<u8>>, processed_data_tx: Sender<Vec<u8>>, config_record: ConfigRecord, remote_networks: &NetworkConfig) {
-        let mut received_public_key = None;
-
-        // Key exchange loop (commented out for now)
-        // while received_public_key.is_none() {
-        //     processed_data_tx.send(REQUEST_PUBLIC_KEY.as_bytes().to_vec()).expect("Failed to request public key");
-        //     if let Ok(received_message) = packet_data_rx.recv() {
-        //         let received_message = ProcessorUnit::extract_payload(received_message.as_slice(), UDP).unwrap();
-        //         match handle_key_exchange(received_message, REQUEST_PUBLIC_KEY, KEY_RECEIVED_ACKNOWLEDGMENT) {
-        //             KeyExchangeStatus::RequestReceived => {
-        //                 let my_public_key = RsaCryptoKeys::get_public_key_pem().expect("Failed to get public key PEM");
-        //                 processed_data_tx.send(my_public_key.as_bytes().to_vec()).expect("Failed to send public key PEM");
-        //             }
-        //             KeyExchangeStatus::PublicKeyReceived(public_key) => {
-        //                 received_public_key = Some(public_key.clone());
-        //                 // Print the received public key in PEM format
-        //                 let public_key_pem = public_key.to_pkcs1_pem(LineEnding::LF).expect("Failed to encode public key to PEM");
-        //                 println!("Received Public Key in PEM format:\n{}", public_key_pem);
-        //                 // Send acknowledgment
-        //                 processed_data_tx.send(KEY_RECEIVED_ACKNOWLEDGMENT.as_bytes().to_vec()).expect("Failed to send acknowledgment");
-        //             }
-        //             KeyExchangeStatus::AcknowledgmentReceived => {
-        //                 break;
-        //             }
-        //             KeyExchangeStatus::None => {
-        //             }
-        //         }
-        //     }
-        //     thread::sleep(Duration::from_millis(500));
-        // }
-
+        let received_public_key = Default::default();
         let aes_type = AesType::from_str(&config_record.aes_type).unwrap();
         let fragment_unit = Fragment {
             secure_net_max_bandwidth: config_record.secure_net_bandwidth as u16,
@@ -75,10 +46,12 @@ impl ProcessorUnit {
         let mut unsecure_network_packets_queue: VecDeque<NetworkICD> = VecDeque::new();
 
         while let Ok(packet_vec) = packet_data_rx.recv() {
+            println!("Packet: {:?}", packet_vec);
             match Filter::identify_network_state_for_packet(&packet_vec, &config_record, remote_networks, Protocol::UDP) {
                 Some(NetworkState::SecureNetworkRemote) => {
                     let aes_key = KeyGenerator::generate_key(KeySize::Bits256);
                     let nonce = Encryptor::generate_iv_or_nonce(Some(aes_type)).unwrap_or_default();
+
                     if let Some(encrypted_payload) = Self::encrypt_packet_payload(&packet_vec, aes_key.clone(), nonce.clone(), &encryptor) {
                         let packets_to_send = Self::fragment_and_prepare_packets(encrypted_payload, &fragment_unit, aes_key, nonce, &received_public_key);
                         Self::send_packets(packets_to_send, &processed_data_tx, &mut packet_counter, &mut start_time);
